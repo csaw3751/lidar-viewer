@@ -201,3 +201,25 @@ Die Tests prüfen unter anderem Fragmentbereinigung, Draft-/Published-Endpunkte,
 - [Zenodo: REST API und Rate Limits](https://developers.zenodo.org/)
 - [GitHub: Pages mit GitHub Actions veröffentlichen](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages)
 - [Potree](https://github.com/potree/potree)
+
+
+## Open-Source-Komponenten und Danksagung
+
+Dieser Viewer baut auf folgenden Open-Source-Projekten auf:
+
+- [Potree 1.8](https://github.com/potree/potree), ein WebGL-Viewer für große
+  Punktwolken von Markus Schütz und Mitwirkenden — BSD-2-Clause-Lizenz.
+- [copc.js](https://github.com/connormanning/copc.js), eine Bibliothek zum
+  Lesen und Streamen von Cloud-Optimized Point Clouds (COPC) von
+  Connor Manning — MIT-Lizenz.
+- [copc-converter](https://github.com/360-geo/copc-converter), verwendet bei
+  der Vorverarbeitung zur Konvertierung von LAS/LAZ nach COPC —
+  MIT-Lizenz.
+
+Die projektspezifische Benutzeroberfläche, die geschützte Zenodo-Zugriffsschicht,
+die Verarbeitung mehrteiliger Aufnahmen und der GitHub-Pages-Workflow wurden für
+dieses Masterarbeitsprojekt entwickelt.
+
+Die vollständigen Copyright- und Lizenzhinweise der eingebundenen Komponenten
+befinden sich in [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) sowie in den
+mitgelieferten Lizenzdateien der jeweiligen Bibliotheken.
