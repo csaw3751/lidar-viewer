@@ -1,0 +1,21 @@
+.venv/
+.cache/
+.build/
+tools/
+
+# Punktwolken, Meshes und Originalexporte gehören auf Zenodo, nicht in Git.
+*.e57
+*.las
+*.laz
+*.ply
+*.pcd
+*.xyz
+*.glb
+*.gltf
+viewer/pointclouds/**/octree.bin
+viewer/pointclouds/**/hierarchy.bin
+
+!viewer/data/README.md
+
+scripts/__pycache__/
+*.pyc

@@ -1,0 +1,5 @@
+laspy==2.7.0
+lazrs==0.8.2
+numpy==2.5.2
+pye57==0.4.19
+pyquaternion==0.9.9

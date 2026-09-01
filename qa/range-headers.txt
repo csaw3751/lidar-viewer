@@ -1,0 +1,12 @@
+HTTP/1.1 206 Partial Content
+Server: SimpleHTTP/0.6 Python/3.12.13
+Date: Tue, 01 Sep 2026 14:52:02 GMT
+Content-Type: application/octet-stream
+Content-Range: bytes 0-999/99941088
+Content-Length: 1000
+Last-Modified: Tue, 01 Sep 2026 14:49:01 GMT
+Access-Control-Allow-Origin: *
+Access-Control-Allow-Headers: Range, Content-Type
+Access-Control-Expose-Headers: Accept-Ranges, Content-Length, Content-Range
+Accept-Ranges: bytes
+

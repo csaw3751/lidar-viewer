@@ -1,0 +1,5 @@
+Viewer: http://127.0.0.1:8765/index.html
+Root:   /workspace/scratch/196b187870f5/work/site-scape-potree-test/viewer
+127.0.0.1 - - [01/Sep/2026 16:57:46] "GET /index.html HTTP/1.1" 200 -
+127.0.0.1 - - [01/Sep/2026 16:57:46] "GET /data/spz-squash.copc.laz HTTP/1.1" 206 -
+127.0.0.1 - - [01/Sep/2026 16:57:46] "GET /data/spz-squash.copc.laz HTTP/1.1" 206 -

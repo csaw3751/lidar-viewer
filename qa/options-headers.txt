@@ -1,0 +1,10 @@
+HTTP/1.1 204 No Content
+Server: SimpleHTTP/0.6 Python/3.12.13
+Date: Tue, 01 Sep 2026 14:52:02 GMT
+Access-Control-Allow-Methods: GET, HEAD, OPTIONS
+Content-Length: 0
+Access-Control-Allow-Origin: *
+Access-Control-Allow-Headers: Range, Content-Type
+Access-Control-Expose-Headers: Accept-Ranges, Content-Length, Content-Range
+Accept-Ranges: bytes
+

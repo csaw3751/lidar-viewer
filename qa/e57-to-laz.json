@@ -1,0 +1,92 @@
+{
+  "source": {
+    "file": "SPZ Squash.e57",
+    "size_bytes": 166226944,
+    "sha256": "ad611e9563d9d41404bd49779656896f1b0c4dfc58e5ee1cc8d894c13f74e2df",
+    "points": 11033814,
+    "fields": [
+      "cartesianX",
+      "cartesianY",
+      "cartesianZ",
+      "colorRed",
+      "colorGreen",
+      "colorBlue"
+    ],
+    "bounds": {
+      "x": [
+        -7.730779647827148,
+        -1.7175871133804321
+      ],
+      "y": [
+        -10.272649765014648,
+        -4.815305709838867
+      ],
+      "z": [
+        1.3738242387771606,
+        4.8598504066467285
+      ]
+    },
+    "pose_present": false,
+    "axis_conversion": "none (E57 retained as Z-up)",
+    "rgb": {
+      "red": {
+        "min": 0,
+        "max": 255,
+        "mean": 159.57270459697799
+      },
+      "green": {
+        "min": 0,
+        "max": 255,
+        "mean": 161.57584947507726
+      },
+      "blue": {
+        "min": 0,
+        "max": 255,
+        "mean": 159.6768596062975
+      }
+    },
+    "non_finite_xyz": 0
+  },
+  "output": {
+    "file": "spz-squash.laz",
+    "size_bytes": 85258517,
+    "sha256": "1af76758aba343b3d50e8546a87d26a1446f75ae9538453df44890abb3c595cb",
+    "points": 11033814,
+    "point_format": 2,
+    "las_version": "1.2",
+    "scales": [
+      1e-06,
+      1e-06,
+      1e-06
+    ],
+    "offsets": [
+      -8.0,
+      -11.0,
+      1.0
+    ],
+    "bounds": {
+      "min": [
+        -7.73078,
+        -10.27265,
+        1.373824
+      ],
+      "max": [
+        -1.717587,
+        -4.8153060000000005,
+        4.85985
+      ]
+    },
+    "rgb16_min": [
+      0,
+      0,
+      0
+    ],
+    "rgb16_max": [
+      65535,
+      65535,
+      65535
+    ],
+    "crs": null
+  },
+  "status": "validated"
+}

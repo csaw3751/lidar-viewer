@@ -1,0 +1,203 @@
+# Geschützter LiDAR-Viewer mit GitHub Pages und Zenodo
+
+Dieses Paket stellt Potree als statische Website bereit. Die Website enthält **keine Scandaten, keine Zenodo-Record-ID und kein Zugangstoken**. Punktwolken werden erst nach dem Öffnen eines persönlichen Geheimlinks bereichsweise aus einem eingeschränkten Zenodo-Datensatz geladen.
+
+## Was nach Zenodo gehört
+
+Für den Browser-Viewer werden nur diese Dateien benötigt:
+
+1. genau eine `viewer-manifest.json`;
+2. je Scan genau eine weboptimierte `*.copc.laz`.
+
+E57, PLY, normale LAZ, GLB, Grundrisse und weitere Originale können zusätzlich als Archivkopien in Zenodo liegen, werden von diesem Potree-Viewer aber nicht geladen. HTML, JavaScript, Potree und dieses Repository gehören **nicht** in den Zenodo-Datensatz.
+
+Der aktuelle SiteScape-Datensatz besteht damit aus fünf Viewer-Dateien: einem Manifest und vier COPC-Dateien. Weitere Scans werden in einer neuen Zenodo-Version als zusätzliche COPC-Dateien ergänzt und im Manifest eingetragen.
+
+Beispiel für mehrere Scans:
+
+```json
+{
+  "schemaVersion": 1,
+  "title": "LiDAR-Scans",
+  "scans": [
+    {
+      "id": "scan-a",
+      "label": "Scan A",
+      "source": "SiteScape",
+      "type": "pointcloud",
+      "format": "copc",
+      "file": "scan-a.copc.laz",
+      "units": "m"
+    },
+    {
+      "id": "scan-b",
+      "label": "Scan B",
+      "source": "Polycam",
+      "type": "pointcloud",
+      "format": "copc",
+      "file": "scan-b.copc.laz",
+      "units": "m"
+    }
+  ]
+}
+```
+
+Dateinamen müssen einfache Namen ohne Verzeichnisse sein und auf `.copc.laz` enden. Optionale Manifestfelder sind `points`, `extent`, `attributes` und `webFormat`.
+
+## Zenodo-Datensatz veröffentlichen
+
+Vor **Publish** müssen alle Viewer-Dateien 100 % anzeigen und eine Prüfsumme besitzen. Danach den Entwurf speichern, über den persönlichen Geheimlink einmal öffnen und alle Scans im Auswahlmenü testen. Die Sichtbarkeit bleibt auf **Files only → Restricted**; ein Embargo ist für dieses Freigabemodell nicht nötig.
+
+Beim Veröffentlichen werden Datensatzseite und Metadaten öffentlich, die Dateien bleiben eingeschränkt. Der vorhandene Link mit `Can preview drafts` berechtigt laut Zenodo auch zum Zugriff auf eingeschränkte Dateien aktueller und zukünftiger Versionen. Für eine reine Freigabe der veröffentlichten Fassung kann alternativ pro Person ein Link mit `Can view` erzeugt werden. Der Viewer probiert automatisch zuerst den Entwurf und anschließend die veröffentlichte Fassung.
+
+Veröffentlichte Dateien sollten praktisch als unveränderlich behandelt werden. Inhaltliche Ergänzungen oder neue Scans gehören in eine neue Zenodo-Version; dadurch bleibt die vorherige Fassung nachvollziehbar.
+
+## Lokal testen
+
+Aus dem Projektstamm unter Windows PowerShell:
+
+```powershell
+py -3.12 .\scripts\serve_viewer.py --port 8765
+```
+
+Anschließend den persönlichen Viewer-Link im Browser öffnen:
+
+```text
+http://127.0.0.1:8765/index.html#record=RECORD_ID&token=SECRET
+```
+
+`RECORD_ID` und `SECRET` stammen aus dem von Zenodo erzeugten Geheimlink. Der Viewer entfernt das Fragment sofort aus der Adresszeile und behält den Zugang nur in der aktuellen Tab-Sitzung (`sessionStorage`). Beim Schließen aller Kopien des Tabs oder über „Zugang aus diesem Tab entfernen“ wird er verworfen. Für die Origin-Trennung siehe [SECURITY.md](SECURITY.md).
+
+Der Link funktioniert sowohl mit einem unveröffentlichten Entwurf (`Can preview drafts`) als auch nach der eingeschränkten Veröffentlichung. Der Viewer ermittelt den passenden Zenodo-Endpunkt automatisch.
+
+## Weitere SiteScape-Scans aufbereiten
+
+Das mitgelieferte PowerShell-Skript verwendet die systemweite Python-3.12-Installation und installiert fehlende, festgeschriebene Pakete für das Windows-Benutzerkonto; es legt keine virtuelle Umgebung an. Für einen einzelnen Scan:
+
+```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
+& .\scripts\build_scan.ps1 `
+  -InputFile "C:\Scans\SPZ Squash.e57" `
+  -Name "Sportzentrum - Squash" `
+  -Slug "spz-squash"
+```
+
+Eine bereits geometrisch geprüfte, geteilte E57-Aufnahme kann ohne Ausdünnung in eine gemeinsame COPC-Datei geschrieben werden:
+
+```powershell
+& .\scripts\build_scan.ps1 `
+  -InputFile @("C:\Scans\Lueftung 1.e57", "C:\Scans\Lueftung 2.e57") `
+  -Name "Sportzentrum - Lüftung" `
+  -Slug "spz-lueftung" `
+  -AssumeCommonCoordinates
+```
+
+`-AssumeCommonCoordinates` bestätigt bewusst, dass Pose, Grenzen und Überlappung zuvor geprüft wurden; das Skript führt keine automatische Registrierung oder ICP-Ausrichtung durch.
+
+## Darstellungsqualität
+
+Die Auswahl **Auto / Hoch / Maximum** wirkt sofort und verändert weder COPC-Datei noch Messwerte. Die Stufen erhöhen ausschließlich den gleichzeitig dargestellten Detailgrad:
+
+| Stufe | Desktop | Kompakte Geräte | Verwendung |
+|---|---:|---:|---|
+| Auto | bis 3,5 Mio. Punkte | bis 1,2 Mio. Punkte | ausgewogene Voreinstellung |
+| Hoch | bis 5,5 Mio. Punkte | bis 2,0 Mio. Punkte | detaillierte normale Untersuchung |
+| Maximum | bis 9,0 Mio. Punkte | bis 3,5 Mio. Punkte | feinste Ansicht auf leistungsfähiger Hardware |
+
+Alle Stufen verwenden adaptive, runde Punkte und eine zunehmend feinere Potree-LOD-Schwelle. Höhere Stufen benötigen mehr Zenodo-Anfragen, Grafikleistung und Arbeitsspeicher. Gespeichert wird nur die Qualitätswahl in `localStorage`; der Zenodo-Zugang bleibt davon getrennt und ausschließlich tab-lokal in `sessionStorage`.
+
+## Auf GitHub Pages bereitstellen
+
+1. Inhalt dieses Verzeichnisses in ein eigenes GitHub-Repository übernehmen.
+2. Auf GitHub unter **Settings → Pages → Build and deployment → Source** den Eintrag **GitHub Actions** auswählen.
+3. Den Lauf **Deploy protected LiDAR viewer** unter **Actions** abwarten.
+4. Die angezeigte Pages-Adresse öffnen. Sie hat typischerweise dieses Schema:
+
+```text
+https://USERNAME.github.io/REPOSITORY/
+```
+
+Der mitgelieferte Workflow veröffentlicht ausschließlich den Ordner `viewer/`. Tests, Skripte und Dokumentation werden nicht als Website ausgeliefert.
+
+GitHub Pages selbst ist in diesem Aufbau öffentlich erreichbar; das ist beabsichtigt, weil die Seite nur die Viewer-Hülle enthält. GitHub weist darauf hin, dass eine Pages-Site auch bei einem privaten Repository öffentlich sein kann. Auf GitHub Free steht Pages regulär für öffentliche Repositorys zur Verfügung; private Repositorys benötigen einen passenden Tarif. Die Scandaten bleiben unabhängig davon in Zenodo eingeschränkt.
+
+## Persönlichen Viewer-Link zusammensetzen
+
+Ein Zenodo-Geheimlink enthält dieselben beiden Werte:
+
+```text
+https://zenodo.org/records/RECORD_ID?preview=1&token=SECRET
+```
+
+Für die Empfängerin oder den Empfänger wird daraus:
+
+```text
+https://USERNAME.github.io/REPOSITORY/#record=RECORD_ID&token=SECRET
+```
+
+Optional kann ein bestimmter Scan vorausgewählt werden:
+
+```text
+https://USERNAME.github.io/REPOSITORY/#record=RECORD_ID&token=SECRET&scan=SCAN_ID
+```
+
+Den vollständigen persönlichen Link niemals in Git, GitLab, eine öffentliche README, ein Issue oder einen Screenshot kopieren. Für jede Person sollte in Zenodo ein eigener, möglichst befristeter Link erzeugt werden. Ein Link kann dort jederzeit widerrufen werden.
+
+## Sicherheitsmodell
+
+- Das URL-Fragment wird nicht an GitHub Pages gesendet und sofort aus der Adresszeile entfernt.
+- Zenodo-Origin und API-Pfade sind fest vorgegeben; beliebige `?data=`-Quellen sind deaktiviert.
+- Der Token wird weder in Konfiguration noch DOM, Konsolenausgaben oder `localStorage` geschrieben.
+- COPC-Anfragen akzeptieren ausschließlich exakte HTTP-`206`-Bytebereiche. Eine vollständige `200`-Antwort wird vor dem Einlesen abgebrochen.
+- Wiederholte Bereiche werden im Speicher dedupliziert; Starts werden auf etwa 40 Anfragen pro Minute begrenzt, unterhalb von Zenodos dokumentiertem Gastlimit von 60 pro Minute.
+- CSP, `no-referrer` und `noindex` reduzieren unbeabsichtigte Weitergabe und Auffindbarkeit.
+
+Ein Geheimlink ist kein DRM: Wer den Link erhalten hat, darf die Daten im Browser laden und kann sie mit Entwicklerwerkzeugen grundsätzlich auch herunterladen. Nicht berechtigte Personen erhalten ohne Token keinen Zugriff.
+
+Weitere Hinweise stehen in [SECURITY.md](SECURITY.md).
+
+## Tests ausführen
+
+Es werden nur Node.js und Python benötigt:
+
+```powershell
+node --check .\viewer\zenodo-access.js
+node --check .\viewer\app.js
+node --test .\tests\test_zenodo_access.mjs
+py -3.12 -m unittest -v tests.test_static_and_server
+```
+
+Die Tests prüfen unter anderem Fragmentbereinigung, Draft-/Published-Endpunkte, Mehrscan-Auswahl, Manifestvalidierung, Traversal-Schutz, exakte Bytebereiche, Deduplizierung, Abbruch bei `200`, Darstellungsstufen, fehlende Scandateien im Webordner und den lokalen Range-Server.
+
+## Verzeichnisstruktur
+
+```text
+.
+├── .github/workflows/deploy-pages.yml
+├── README.md
+├── SECURITY.md
+├── scripts/
+│   ├── build_scan.ps1
+│   ├── prepare_pointcloud.py
+│   ├── requirements.txt
+│   └── serve_viewer.py
+├── tests/
+└── viewer/
+    ├── .nojekyll
+    ├── index.html
+    ├── config.js
+    ├── zenodo-access.js
+    ├── app.js
+    ├── styles.css
+    ├── data/README.md
+    └── vendor/
+```
+
+## Referenzen
+
+- [Zenodo: Link sharing](https://help.zenodo.org/docs/share/link-sharing/)
+- [Zenodo: About records](https://help.zenodo.org/docs/deposit/about-records/)
+- [Zenodo: Manage versions](https://help.zenodo.org/docs/deposit/manage-versions/)
+- [Zenodo: REST API und Rate Limits](https://developers.zenodo.org/)
+- [GitHub: Pages mit GitHub Actions veröffentlichen](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages)
+- [Potree](https://github.com/potree/potree)
