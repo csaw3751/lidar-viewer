@@ -187,10 +187,26 @@ class StaticSecurityTests(unittest.TestCase):
         self.assertIn("viewer.setLanguage(i18n.language)", app)
         self.assertIn("new Intl.NumberFormat(currentLocale()", app)
         self.assertIn('potreeI18n.addResources("de", "translation", supplement)', app)
-        self.assertIn("tree.rename_node(node, t(translationKey))", app)
+        self.assertIn("tree.rename_node(", app)
+        self.assertIn("node.data.__lidarViewerTranslationValues", app)
         self.assertIn('"camera_animation_added"', app)
         self.assertIn('"oriented_images_added"', app)
         self.assertIn('"360_images_added"', app)
+        self.assertIn('"polygon_clip_volume_added"', app)
+        self.assertIn("POTREE_FIXED_TEXT_BINDINGS", app)
+        self.assertIn("new window.MutationObserver(schedulePotreeTranslation)", app)
+        self.assertIn('option.setAttribute("value", option.value)', app)
+        self.assertIn("describePotreeMessage(content)", app)
+        self.assertIn("originalPostMessage.call(this, rendered, params)", app)
+        self.assertIn("#potree_languages", styles)
+        self.assertRegex(
+            styles,
+            r"#potree_languages\s*\{[^}]*display:\s*none\s*!important",
+        )
+        self.assertNotRegex(
+            app,
+            r"\b(?:innerHTML|outerHTML|insertAdjacentHTML)\b",
+        )
         self.assertIn("setLoadingOverlayVisible(false)", app)
         self.assertIn('toggleAttribute("inert"', app)
         self.assertIn("@media (max-width: 390px)", styles)

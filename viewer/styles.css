@@ -65,6 +65,11 @@ button:focus-visible {
   display: none !important;
 }
 
+/* The first-party DE/EN selector is the only language control. */
+#potree_languages {
+  display: none !important;
+}
+
 .app-header,
 .toolstrip,
 .status-pill {

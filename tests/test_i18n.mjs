@@ -5,6 +5,8 @@ import vm from "node:vm";
 
 const source = await readFile(new URL("../viewer/i18n.js", import.meta.url), "utf8");
 const html = await readFile(new URL("../viewer/index.html", import.meta.url), "utf8");
+const appSource = await readFile(new URL("../viewer/app.js", import.meta.url), "utf8");
+const styles = await readFile(new URL("../viewer/styles.css", import.meta.url), "utf8");
 const STORAGE_KEY = "lidar-viewer.language.v1";
 const ACCESS_KEY = "lidar-viewer.zenodo-access.v1";
 
@@ -325,6 +327,60 @@ test("language storage remains separate from protected Zenodo access", () => {
   assert.equal(loaded.window.location.hash, hashBefore);
   assert.equal(loaded.window.location.href, hrefBefore);
   assert.deepEqual(loaded.replacements, []);
+});
+
+test("the first-party Potree bridge localises dynamic legacy UI safely", () => {
+  const { i18n } = loadI18n();
+  const literalKeys = Object.keys(i18n.catalog.en)
+    .filter((key) => key.startsWith("potree.literal."));
+  assert.ok(literalKeys.length >= 150, "Expected complete coverage of unmarked Potree literals");
+
+  [
+    "potree.literal.eyeDomeLighting",
+    "potree.literal.cameraProjection",
+    "potree.literal.attributeWeights",
+    "potree.literal.neverClassified",
+    "potree.literal.aboutDescription",
+    "potree.message.noMeasurements",
+    "potree.message.orthographicRequired",
+    "potree.tooltip.downloadCsv",
+    "tool.circle",
+    "tool.azimuth",
+    "tool.sphereVolume",
+    "tool.clipPolygonNumbered",
+  ].forEach((key) => {
+    assert.equal(typeof i18n.catalog.en[key], "string", "Missing English key: " + key);
+    assert.equal(typeof i18n.catalog.de[key], "string", "Missing German key: " + key);
+  });
+
+  const reversibleKey = "potree.literal.cameraProjection";
+  const englishValue = i18n.catalog.en[reversibleKey];
+  const germanValue = i18n.catalog.de[reversibleKey];
+  i18n.setLanguage("de", { persist: false });
+  assert.equal(i18n.t(reversibleKey), germanValue);
+  i18n.setLanguage("en", { persist: false });
+  assert.equal(i18n.t(reversibleKey), englishValue);
+  i18n.setLanguage("de", { persist: false });
+  assert.equal(i18n.t(reversibleKey), germanValue);
+
+  assert.match(appSource, /POTREE_FIXED_TEXT_BINDINGS/);
+  assert.match(appSource, /new window\.MutationObserver\(schedulePotreeTranslation\)/);
+  assert.match(appSource, /option\.setAttribute\("value", option\.value\)/);
+  assert.match(appSource, /\[contenteditable='true'\]/);
+  assert.match(appSource, /describePotreeMessage\(content\)/);
+  assert.match(appSource, /originalPostMessage\.call\(this, rendered, params\)/);
+  assert.match(appSource, /measurement\.showAzimuth/);
+  assert.match(appSource, /"polygon_clip_volume_added"/);
+  assert.match(appSource, /state\.viewer\.scene\.polygonClipVolumes/);
+  assert.match(
+    styles,
+    /#potree_languages\s*\{[^}]*display:\s*none\s*!important;?[^}]*\}/s,
+  );
+
+  assert.doesNotMatch(appSource, /\b(?:innerHTML|outerHTML|insertAdjacentHTML)\b/);
+  assert.doesNotMatch(appSource, /\bdocument\.write(?:ln)?\s*\(/);
+  assert.doesNotMatch(appSource, /\beval\s*\(/);
+  assert.doesNotMatch(appSource, /\bnew\s+Function\b/);
 });
 
 test("the renderer uses no unsafe HTML or code-execution sink", () => {

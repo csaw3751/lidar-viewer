@@ -12,7 +12,7 @@ The interface is available in English and German. Language selection follows thi
 2. the browser's preferred languages;
 3. English as the fallback.
 
-German (`de` and regional variants such as `de-AT`) selects German. Every other, unsupported, or missing language falls back to English. The selector changes the interface immediately and updates the document language, controls, help text, tooltips, dialogs, status messages, error messages, accessibility labels, number formatting, and Potree interface.
+German (`de` and regional variants such as `de-AT`) selects German. Every other, unsupported, or missing language falls back to English. The selector changes the interface immediately and updates the document language, controls, help text, tooltips, dialogs, status messages, error messages, accessibility labels, number formatting, and Potree interface. The independent legacy Potree language picker is hidden so this synchronized EN/DE control remains authoritative, including for dynamically created advanced panels and scene objects.
 
 The language preference contains no credentials and is stored separately from the tab-scoped Zenodo access data. Changing the language does not reconstruct the secret URL fragment or alter Zenodo authentication, endpoint selection, Range streaming, or COPC loading. Dataset titles, scan labels, sources, and other descriptive values from `viewer-manifest.json` are displayed as supplied because they are dataset content rather than interface text.
 
@@ -191,7 +191,7 @@ py -3.12 -m unittest -v tests.test_static_and_server
 
 The existing tests cover fragment scrubbing, draft and published endpoints, multi-scan selection, manifest validation, traversal protection, exact byte ranges, request deduplication, rejection of complete `200` responses, quality levels, prohibited scan files in the web directory, and the local Range server.
 
-The localization and safety tests additionally cover dictionary-key parity, complete markup-key coverage, English static fallback, `de-AT` detection, unsupported-language fallback to English, saved-choice precedence, invalid saved values, live translation of text and attributes, Potree language synchronization, locale-aware number formatting, separation of language preference from access credentials, CSP and security-critical script order, and an unchanged `viewer/vendor/` tree.
+The localization and safety tests additionally cover dictionary-key parity, complete markup-key coverage, English static fallback, `de-AT` detection, unsupported-language fallback to English, saved-choice precedence, invalid saved values, live translation of text and attributes, Potree language synchronization, dynamic legacy Potree panels, messages and tool-created object names, preservation of semantic option values and user or dataset labels, locale-aware number formatting, separation of language preference from access credentials, CSP and security-critical script order, and an unchanged `viewer/vendor/` tree.
 
 ## Repository layout
 

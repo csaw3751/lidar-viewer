@@ -73,6 +73,77 @@
     images: "potree.tree.images",
   });
 
+  const POTREE_LITERAL_PREFIX = "potree.literal.";
+  const POTREE_TEXT_NODE_KEYS = new WeakMap();
+  const POTREE_RANGE_NODE_PARTS = new WeakMap();
+  const POTREE_LITERAL_KEY_BY_TEXT = (() => {
+    const index = new Map();
+    if (!i18n || !i18n.catalog) return index;
+    ["en", "de"].forEach((language) => {
+      const catalog = i18n.catalog[language] || {};
+      Object.entries(catalog).forEach(([key, value]) => {
+        if (!key.startsWith(POTREE_LITERAL_PREFIX)) return;
+        const normalised = normalisePotreeText(value);
+        if (normalised && !index.has(normalised)) index.set(normalised, key);
+      });
+    });
+    return index;
+  })();
+
+  const POTREE_FIXED_TEXT_BINDINGS = Object.freeze([
+    ["#background_options label[for='background_options_skybox']", "potree.literal.skybox"],
+    ["#background_options label[for='background_options_gradient']", "potree.literal.gradient"],
+    ["#background_options label[for='background_options_black']", "potree.literal.black"],
+    ["#background_options label[for='background_options_white']", "potree.literal.white"],
+    ["#background_options label[for='background_options_none']", "potree.literal.none"],
+    ["#splat_quality_options label[for='splat_quality_options_standard']", "potree.literal.standard"],
+    ["#splat_quality_options label[for='splat_quality_options_hq']", "potree.literal.highQuality"],
+    ["#splat_quality_options legend", "potree.literal.splatQuality"],
+    ["#measurement_options_show label[for='measurement_options_show_yes']", "potree.literal.show"],
+    ["#measurement_options_show label[for='measurement_options_show_no']", "potree.literal.hide"],
+    ["#measurement_options_show legend", "potree.literal.showHideLabels"],
+    ["#cliptask_options label[for='cliptask_options_none']", "potree.literal.none"],
+    ["#cliptask_options label[for='cliptask_options_highlight']", "potree.literal.highlight"],
+    ["#cliptask_options label[for='cliptask_options_show_inside']", "potree.literal.inside"],
+    ["#cliptask_options label[for='cliptask_options_show_outside']", "potree.literal.outside"],
+    ["#cliptask_options legend", "potree.literal.clipTask"],
+    ["#clipmethod_options label[for='clipmethod_options_any']", "potree.literal.insideAny"],
+    ["#clipmethod_options label[for='clipmethod_options_all']", "potree.literal.insideAll"],
+    ["#clipmethod_options legend", "potree.literal.clipMethod"],
+    ["#camera_projection_options label[for='camera_projection_options_perspective']", "potree.literal.perspective"],
+    ["#camera_projection_options label[for='camera_projection_options_orthigraphic']", "potree.literal.orthographic"],
+    ["#camera_projection_options legend", "potree.literal.cameraProjection"],
+    ["#gpstime_multilevel_range_container li > span > span:first-child", "potree.literal.timeLabel"],
+    ["#toggleClassificationFilters + span", "potree.literal.showHideAll"],
+  ]);
+
+  const POTREE_FIXED_TOOLTIPS = Object.freeze([
+    ["#closeProfileContainer", "potree.tooltip.closeProfile"],
+    ["#potree_profile_rotate_cw", "potree.tooltip.rotateClockwise"],
+    ["#potree_profile_rotate_ccw", "potree.tooltip.rotateCounterClockwise"],
+    ["#potree_profile_move_forward", "potree.tooltip.moveForward"],
+    ["#potree_profile_move_backward", "potree.tooltip.moveBackward"],
+    ["#potree_download_csv_icon", "potree.tooltip.downloadCsv"],
+    ["#potree_download_las_icon", "potree.tooltip.downloadLas"],
+    ["img[name='geojson_export_button']", "potree.tooltip.exportGeoJson"],
+    ["img[name='dxf_export_button']", "potree.tooltip.exportDxf"],
+    ["img[name='potree_export_button']", "potree.tooltip.exportPotree"],
+    ["img[name='remove'], img[name='delete']", "potree.tooltip.remove"],
+    ["#animation_keyframes img[name='assign']", "potree.tooltip.assignKeyframe"],
+    ["#animation_keyframes img[name='move']", "potree.tooltip.moveToKeyframe"],
+  ]);
+
+  const POTREE_RANGE_SELECTORS = Object.freeze([
+    "#lblReturnNumber",
+    "#lblNumberOfReturns",
+    "#lblHeightRange",
+    "#lblExtraRange",
+    "#lblIntensityRange",
+  ]);
+
+  let potreeInterfaceObserver = null;
+  let potreeTranslationScheduled = false;
+
   const state = {
     viewer: null,
     metadata: null,
@@ -271,11 +342,262 @@
     renderLoading();
   }
 
-  function labelSceneObject(object, translationKey) {
+  function labelSceneObject(object, translationKey, values = {}) {
     if (!object) return object;
     object.__lidarViewerTranslationKey = translationKey;
-    object.name = t(translationKey);
+    object.__lidarViewerTranslationValues = Object.freeze({ ...values });
+    object.name = t(translationKey, values);
     return object;
+  }
+
+  function normalisePotreeText(value) {
+    return typeof value === "string" ? value.trim().replace(/\s+/g, " ") : "";
+  }
+
+  function potreeTranslationKey(value) {
+    return POTREE_LITERAL_KEY_BY_TEXT.get(normalisePotreeText(value)) || null;
+  }
+
+  function skipPotreeTextNode(node) {
+    const parent = node && node.parentElement;
+    if (!parent) return true;
+    return Boolean(parent.closest(
+      "script, style, #jstree_scene, [contenteditable='true'], [name='download_message']",
+    ));
+  }
+
+  function translatePotreeTextNode(node) {
+    if (skipPotreeTextNode(node)) return;
+    const raw = node.nodeValue || "";
+    let key = POTREE_TEXT_NODE_KEYS.get(node);
+    if (!key) {
+      key = potreeTranslationKey(raw);
+      if (!key) return;
+      POTREE_TEXT_NODE_KEYS.set(node, key);
+
+      const option = node.parentElement;
+      if (option && option.tagName === "OPTION" && !option.hasAttribute("value")) {
+        option.setAttribute("value", option.value);
+      }
+    }
+
+    const leading = (raw.match(/^\s*/) || [""])[0];
+    const trailing = (raw.match(/\s*$/) || [""])[0];
+    const rendered = leading + t(key) + trailing;
+    if (node.nodeValue !== rendered) node.nodeValue = rendered;
+  }
+
+  function translatePotreeAttributes(element) {
+    if (!element || element.nodeType !== 1) return;
+
+    ["title", "placeholder"].forEach((attribute) => {
+      const keyAttribute = "data-lidar-potree-" + attribute + "-key";
+      let key = element.getAttribute(keyAttribute);
+      if (!key) {
+        key = potreeTranslationKey(element.getAttribute(attribute));
+        if (key) element.setAttribute(keyAttribute, key);
+      }
+      if (key) {
+        const rendered = t(key);
+        if (element.getAttribute(attribute) !== rendered) {
+          element.setAttribute(attribute, rendered);
+        }
+      }
+    });
+
+    if (element.tagName === "INPUT" && ["button", "submit", "reset"].includes(element.type)) {
+      const keyAttribute = "data-lidar-potree-value-key";
+      let key = element.getAttribute(keyAttribute);
+      if (!key) {
+        key = potreeTranslationKey(element.value);
+        if (key) element.setAttribute(keyAttribute, key);
+      }
+      if (key) {
+        const rendered = t(key);
+        if (element.value !== rendered) element.value = rendered;
+        if (element.getAttribute("value") !== rendered) element.setAttribute("value", rendered);
+      }
+    }
+
+    if (element.tagName === "IMG" && element.getAttribute("title")) {
+      const title = element.getAttribute("title");
+      if (element.getAttribute("aria-label") !== title) element.setAttribute("aria-label", title);
+    }
+  }
+
+  function translatePotreeRange(element) {
+    const raw = normalisePotreeText(element && element.textContent);
+    if (!raw) return;
+
+    const match = /^(.+?)\s+(?:to|bis)\s+(.+)$/.exec(raw);
+    if (match) {
+      POTREE_RANGE_NODE_PARTS.set(element, Object.freeze({
+        start: match[1],
+        end: match[2],
+      }));
+    }
+    const parts = POTREE_RANGE_NODE_PARTS.get(element);
+    if (!parts) return;
+
+    const separator = i18n && i18n.language === "de" ? " bis " : " to ";
+    const rendered = parts.start + separator + parts.end;
+    if (element.textContent !== rendered) element.textContent = rendered;
+  }
+
+  function applyPotreeFixedTranslations(root) {
+    POTREE_FIXED_TEXT_BINDINGS.forEach(([selector, key]) => {
+      root.querySelectorAll(selector).forEach((element) => {
+        const rendered = t(key);
+        if (element.textContent !== rendered) element.textContent = rendered;
+      });
+    });
+
+    POTREE_FIXED_TOOLTIPS.forEach(([selector, key]) => {
+      root.querySelectorAll(selector).forEach((element) => {
+        const rendered = t(key);
+        if (element.getAttribute("title") !== rendered) element.setAttribute("title", rendered);
+        if (element.getAttribute("aria-label") !== rendered) {
+          element.setAttribute("aria-label", rendered);
+        }
+      });
+    });
+
+    POTREE_RANGE_SELECTORS.forEach((selector) => {
+      root.querySelectorAll(selector).forEach(translatePotreeRange);
+    });
+  }
+
+  function translatePotreeSubtree(root) {
+    if (!root) return;
+    applyPotreeFixedTranslations(root);
+
+    if (root.nodeType === 1) translatePotreeAttributes(root);
+    root.querySelectorAll("*").forEach(translatePotreeAttributes);
+
+    const showText = window.NodeFilter ? window.NodeFilter.SHOW_TEXT : 4;
+    const walker = document.createTreeWalker(root, showText);
+    let node = walker.nextNode();
+    while (node) {
+      translatePotreeTextNode(node);
+      node = walker.nextNode();
+    }
+  }
+
+  function translatePotreeInterface() {
+    translatePotreeSubtree(byId("potree_sidebar_container"));
+    translatePotreeSubtree(document.querySelector("#potree_render_area .potree_failpage"));
+    renderPotreeMessages();
+  }
+
+  function schedulePotreeTranslation() {
+    if (potreeTranslationScheduled) return;
+    potreeTranslationScheduled = true;
+    window.setTimeout(() => {
+      potreeTranslationScheduled = false;
+      translatePotreeInterface();
+    }, 0);
+  }
+
+  function observePotreeInterface() {
+    const root = byId("potree_sidebar_container");
+    translatePotreeInterface();
+    if (!root || potreeInterfaceObserver || typeof window.MutationObserver !== "function") return;
+
+    potreeInterfaceObserver = new window.MutationObserver(schedulePotreeTranslation);
+    potreeInterfaceObserver.observe(root, {
+      attributes: true,
+      attributeFilter: ["title", "placeholder", "value"],
+      characterData: true,
+      childList: true,
+      subtree: true,
+    });
+  }
+
+  function describePotreeMessage(content) {
+    if (typeof content !== "string") return null;
+    const copied = /^Copied value to clipboard:\s*<br>\s*'([\s\S]*)'$/.exec(content.trim());
+    if (copied && /^[-+0-9.,\s]+$/.test(copied[1])) {
+      return Object.freeze({
+        key: "potree.message.copied",
+        values: Object.freeze({ value: copied[1] }),
+      });
+    }
+
+    const key = new Map([
+      ["no measurements to export", "potree.message.noMeasurements"],
+      [
+        "Switch to Orthographic Camera Mode before using the Screen-Box-Select tool.",
+        "potree.message.orthographicRequired",
+      ],
+      ["WebGL context lost. ☹", "potree.message.webglLost"],
+    ]).get(content.trim());
+    return key ? Object.freeze({ key, values: Object.freeze({}) }) : null;
+  }
+
+  function renderPotreeMessages() {
+    const messages = state.viewer && state.viewer.messages;
+    (messages || []).forEach((message) => {
+      if (
+        message.__lidarViewerTranslationKey
+        && typeof message.setMessage === "function"
+      ) {
+        message.setMessage(t(
+          message.__lidarViewerTranslationKey,
+          message.__lidarViewerTranslationValues || {},
+        ));
+      }
+      const close = message.elClose && message.elClose[0];
+      if (close) {
+        const label = t("potree.tooltip.closeMessage");
+        close.setAttribute("title", label);
+        close.setAttribute("aria-label", label);
+      }
+    });
+  }
+
+  function installPotreeMessageTranslation(viewer) {
+    if (
+      !viewer
+      || viewer.__lidarViewerMessageTranslation
+      || typeof viewer.postMessage !== "function"
+    ) return;
+
+    const originalPostMessage = viewer.postMessage;
+    viewer.postMessage = function (content, params) {
+      const descriptor = describePotreeMessage(content);
+      const rendered = descriptor ? t(descriptor.key, descriptor.values) : content;
+      const message = originalPostMessage.call(this, rendered, params);
+      if (descriptor && message) {
+        message.__lidarViewerTranslationKey = descriptor.key;
+        message.__lidarViewerTranslationValues = descriptor.values;
+      }
+      const close = message && message.elClose && message.elClose[0];
+      if (close) {
+        const label = t("potree.tooltip.closeMessage");
+        close.setAttribute("title", label);
+        close.setAttribute("aria-label", label);
+      }
+      return message;
+    };
+    viewer.__lidarViewerMessageTranslation = true;
+  }
+
+  function installPotreeCrashTranslation() {
+    const Viewer = window.Potree && window.Potree.Viewer;
+    const prototype = Viewer && Viewer.prototype;
+    if (
+      !prototype
+      || prototype.__lidarViewerCrashTranslation
+      || typeof prototype.onCrash !== "function"
+    ) return;
+
+    const originalOnCrash = prototype.onCrash;
+    prototype.onCrash = function (error) {
+      const result = originalOnCrash.call(this, error);
+      translatePotreeSubtree(document.querySelector("#potree_render_area .potree_failpage"));
+      return result;
+    };
+    prototype.__lidarViewerCrashTranslation = true;
   }
 
   function installPotreeTranslations() {
@@ -283,6 +605,67 @@
     const supplement = i18n && i18n.potreeGermanSupplement;
     if (potreeI18n && supplement && typeof potreeI18n.addResources === "function") {
       potreeI18n.addResources("de", "translation", supplement);
+    }
+  }
+
+  function inferPotreeMeasurementKey(measurement) {
+    if (!measurement || measurement.__lidarViewerTranslationKey) return null;
+
+    let key = null;
+    if (measurement.showAzimuth) {
+      key = "tool.azimuth";
+    } else if (measurement.showCircle) {
+      key = "tool.circle";
+    } else if (measurement.showHeight) {
+      key = "tool.height";
+    } else if (measurement.showAngles) {
+      key = "tool.angle";
+    } else if (measurement.showArea) {
+      key = "tool.area";
+    } else if (measurement.showCoordinates && measurement.maxMarkers === 1) {
+      key = "tool.point";
+    } else if (measurement.showDistances) {
+      key = "tool.distance";
+    }
+
+    const expectedName = key && i18n && i18n.catalog.en[key];
+    return expectedName && measurement.name === expectedName ? key : null;
+  }
+
+  function tagPotreeMeasurement(measurement) {
+    const key = inferPotreeMeasurementKey(measurement);
+    if (key) labelSceneObject(measurement, key);
+  }
+
+  function tagPotreeProfile(profile) {
+    if (
+      profile
+      && !profile.__lidarViewerTranslationKey
+      && profile.name === "Profile"
+    ) {
+      labelSceneObject(profile, "tool.profile");
+    }
+  }
+
+  function tagPotreeVolume(volume) {
+    if (
+      !volume
+      || volume.__lidarViewerTranslationKey
+      || volume.name !== "Volume"
+    ) return;
+
+    const constructorName = volume.constructor && volume.constructor.name;
+    const key = volume.clip
+      ? "tool.clipVolume"
+      : (constructorName === "SphereVolume" ? "tool.sphereVolume" : "tool.volume");
+    labelSceneObject(volume, key);
+  }
+
+  function tagPotreePolygonClip(volume) {
+    if (!volume || volume.__lidarViewerTranslationKey) return;
+    const match = /^polygon_clip_volume_(\d+)$/.exec(volume.name || "");
+    if (match) {
+      labelSceneObject(volume, "tool.clipPolygonNumbered", { number: match[1] });
     }
   }
 
@@ -320,18 +703,40 @@
         translationKey = "potree.tree.camera";
       }
 
-      if (translationKey) tree.rename_node(node, t(translationKey));
+      if (translationKey) {
+        tree.rename_node(
+          node,
+          t(translationKey, node.data.__lidarViewerTranslationValues || {}),
+        );
+      }
     });
   }
 
   function watchPotreeSceneTree() {
     const scene = state.viewer && state.viewer.scene;
     if (!scene || typeof scene.addEventListener !== "function") return;
-    const scheduleTranslation = () => window.setTimeout(translatePotreeSceneTree, 0);
+    const scheduleTranslation = () => window.setTimeout(() => {
+      translatePotreeSceneTree();
+      schedulePotreeTranslation();
+    }, 0);
+
+    scene.addEventListener("measurement_added", (event) => {
+      tagPotreeMeasurement(event.measurement);
+      scheduleTranslation();
+    });
+    scene.addEventListener("profile_added", (event) => {
+      tagPotreeProfile(event.profile);
+      scheduleTranslation();
+    });
+    scene.addEventListener("volume_added", (event) => {
+      tagPotreeVolume(event.volume);
+      scheduleTranslation();
+    });
+    scene.addEventListener("polygon_clip_volume_added", (event) => {
+      tagPotreePolygonClip(event.volume);
+      scheduleTranslation();
+    });
     [
-      "measurement_added",
-      "profile_added",
-      "volume_added",
       "camera_animation_added",
       "oriented_images_added",
       "360_images_added",
@@ -344,11 +749,15 @@
       state.viewer.scene.measurements,
       state.viewer.scene.profiles,
       state.viewer.scene.volumes,
+      state.viewer.scene.polygonClipVolumes,
     ];
     collections.forEach((collection) => {
       (collection || []).forEach((object) => {
         if (object.__lidarViewerTranslationKey) {
-          object.name = t(object.__lidarViewerTranslationKey);
+          object.name = t(
+            object.__lidarViewerTranslationKey,
+            object.__lidarViewerTranslationValues || {},
+          );
         }
       });
     });
@@ -371,6 +780,7 @@
     }
     applyQuality(state.qualityMode);
     translateSceneObjects();
+    translatePotreeInterface();
     renderStatus();
     renderLoading();
   }
@@ -809,8 +1219,10 @@
       populateScanSelector(source.manifest, source.scan);
       setLoading("loading.prepareTitle", "loading.byteRanges");
 
+      installPotreeCrashTranslation();
       const viewer = new Potree.Viewer(byId("potree_render_area"));
       state.viewer = viewer;
+      installPotreeMessageTranslation(viewer);
       watchPotreeSceneTree();
 
       viewer.setEDLEnabled(true);
@@ -827,6 +1239,7 @@
           installPotreeTranslations();
           viewer.setLanguage(i18n.language);
           translatePotreeSceneTree();
+          observePotreeInterface();
           resolve();
         });
       });

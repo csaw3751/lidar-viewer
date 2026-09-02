@@ -12,7 +12,7 @@ Die Oberfläche ist auf Deutsch und Englisch verfügbar. Die Sprache wird in die
 2. die bevorzugten Browsersprachen;
 3. Englisch als Rückfalloption.
 
-Deutsch (`de` und regionale Varianten wie `de-AT`) aktiviert die deutsche Oberfläche. Bei allen anderen, nicht unterstützten oder fehlenden Sprachangaben wird Englisch verwendet. Der Schalter ändert die Oberfläche sofort und aktualisiert Dokumentsprache, Bedienelemente, Hilfetexte, Tooltips, Dialoge, Status- und Fehlermeldungen, barrierefreie Beschriftungen, Zahlenformatierung und die Potree-Oberfläche.
+Deutsch (`de` und regionale Varianten wie `de-AT`) aktiviert die deutsche Oberfläche. Bei allen anderen, nicht unterstützten oder fehlenden Sprachangaben wird Englisch verwendet. Der Schalter ändert die Oberfläche sofort und aktualisiert Dokumentsprache, Bedienelemente, Hilfetexte, Tooltips, Dialoge, Status- und Fehlermeldungen, barrierefreie Beschriftungen, Zahlenformatierung und die Potree-Oberfläche. Die unabhängige alte Potree-Sprachauswahl ist ausgeblendet, damit dieser synchronisierte DE/EN-Schalter auch für dynamisch erzeugte erweiterte Panels und Szenenobjekte maßgeblich bleibt.
 
 Die Spracheinstellung enthält keine Zugangsdaten und wird getrennt von den tab-lokalen Zenodo-Zugangsdaten gespeichert. Ein Sprachwechsel stellt das geheime URL-Fragment nicht wieder her und verändert weder Zenodo-Authentifizierung noch Endpunktauswahl, Range-Streaming oder COPC-Ladelogik. Titel, Scanbezeichnungen, Quellen und weitere beschreibende Werte aus `viewer-manifest.json` werden unverändert angezeigt, weil sie Inhalt des Datensatzes und keine Oberflächentexte sind.
 
@@ -191,7 +191,7 @@ py -3.12 -m unittest -v tests.test_static_and_server
 
 Die bestehenden Tests prüfen Fragmentbereinigung, Entwurfs- und Veröffentlichungsendpunkte, Mehrscan-Auswahl, Manifestvalidierung, Traversal-Schutz, exakte Bytebereiche, Deduplizierung, Abbruch bei vollständigen `200`-Antworten, Darstellungsstufen, verbotene Scandateien im Webordner und den lokalen Range-Server.
 
-Die Übersetzungs- und Sicherheitstests prüfen zusätzlich identische Wörterbuchschlüssel, vollständige Zuordnung der Markup-Schlüssel, englischen statischen Fallback, Erkennung von `de-AT`, englischen Fallback für nicht unterstützte Sprachen, Vorrang einer gespeicherten Auswahl, ungültige gespeicherte Werte, unmittelbare Übersetzung von Texten und Attributen, Synchronisierung der Potree-Sprache, sprachabhängige Zahlenformatierung, Trennung von Spracheinstellung und Zugangsdaten, CSP und sicherheitskritische Skriptreihenfolge sowie einen unveränderten `viewer/vendor/`-Baum.
+Die Übersetzungs- und Sicherheitstests prüfen zusätzlich identische Wörterbuchschlüssel, vollständige Zuordnung der Markup-Schlüssel, englischen statischen Fallback, Erkennung von `de-AT`, englischen Fallback für nicht unterstützte Sprachen, Vorrang einer gespeicherten Auswahl, ungültige gespeicherte Werte, unmittelbare Übersetzung von Texten und Attributen, Synchronisierung der Potree-Sprache, dynamische ältere Potree-Panels, Meldungen und Namen werkzeugerzeugter Objekte, Erhaltung semantischer Optionswerte sowie von Benutzer- und Datensatzbezeichnungen, sprachabhängige Zahlenformatierung, Trennung von Spracheinstellung und Zugangsdaten, CSP und sicherheitskritische Skriptreihenfolge sowie einen unveränderten `viewer/vendor/`-Baum.
 
 ## Verzeichnisstruktur
 

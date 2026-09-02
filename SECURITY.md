@@ -28,7 +28,7 @@ For page reloads and scan changes, validated access data is stored only in `sess
 
 A duplicated or related browser tab can receive a copy of the original tab's session storage. The access data is discarded after all such tab copies have been closed or when the user selects **Remove access from this tab** in English or **Zugang aus diesem Tab entfernen** in German. That command clears the active access state and reloads the viewer without the fragment.
 
-Display preferences such as language or rendering quality are non-secret and remain separate from the Zenodo credential. Browser-language detection, the English fallback, and the DE/EN selector only choose locally bundled interface text. They do not change the accepted origins, URL-fragment format, validation rules, or network requests, and they do not contact an external translation service.
+Display preferences such as language or rendering quality are non-secret and remain separate from the Zenodo credential. Browser-language detection, the English fallback, and the DE/EN selector only choose locally bundled interface text. They do not change the accepted origins, URL-fragment format, validation rules, or network requests, and they do not contact an external translation service. The first-party adapter for unmarked legacy Potree UI translates only allow-listed text nodes, attributes and messages; it preserves semantic option values, unknown attributes, and user or dataset labels, and it introduces no HTML-injection sink.
 
 ## Origin isolation
 
