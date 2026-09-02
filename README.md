@@ -66,6 +66,12 @@ The initial language is selected in this order:
 
 Changing the language stores only the language preference in `localStorage`. The rendering-quality preference uses its own independent `localStorage` entry. The Zenodo record ID and token are never placed there: access data remains separate in tab-local `sessionStorage`. Labels and metadata supplied by `viewer-manifest.json` remain exactly as authored and are not translated.
 
+## Measuring areas
+
+The **3D area** tool evaluates a closed polygon with at least three vertices in two ways: the **3D area (vector area)** is the magnitude of the vector area formed by the ordered 3D vertices, while the **XY projection** is the area of the same polygon in the horizontal XY plane. For simple planar polygons, the vector area is exact regardless of spatial orientation, winding direction, or concavity.
+
+If the plane thickness exceeds the greater of `0.02 m` and `1%` of the polygon's 3D span, the viewer displays a **non-planar** warning. The 3D value is then only a planar approximation because the points do not define a unique real surface. Vertices must describe a simple polygon in order along its boundary. Self-intersecting polygons are not supported; fewer than three, non-finite, collinear, or otherwise degenerate points produce no valid area.
+
 ## Testing locally
 
 From the project root in Windows PowerShell:
@@ -124,14 +130,15 @@ All levels use adaptive round points and progressively finer Potree LOD threshol
 
 1. Copy the contents of this directory into a dedicated GitHub repository.
 2. On GitHub, select **Settings → Pages → Build and deployment → Source → GitHub Actions**.
-3. Wait for **Deploy protected LiDAR viewer** to finish under **Actions**.
-4. Open the displayed Pages address. Its usual form is:
+3. Open a pull request against `main` and wait for the **Tests** job in **Test and deploy LiDAR viewer** to pass. Pull requests never deploy the site.
+4. After merging, wait for **Tests** and then **Deploy GitHub Pages** to finish under **Actions**. The deployment job runs only after the tests pass on `main`.
+5. Open the displayed Pages address. Its usual form is:
 
 ```text
 https://USERNAME.github.io/REPOSITORY/
 ```
 
-The supplied workflow publishes only the `viewer/` directory. Tests, scripts, and documentation are not deployed as part of the website.
+The workflow also supports a manual dispatch from `main`. It publishes only the `viewer/` directory; tests, scripts, and documentation are not included in the Pages artifact. For branch protection, require the **Tests** status check rather than the deployment job. The deployment job holds the Pages write permissions, while the pull-request test job requires read access only.
 
 GitHub Pages itself is publicly reachable in this setup. This is intentional because the site contains only the viewer shell. GitHub notes that a Pages site may be public even when its repository is private. GitHub Free generally provides Pages for public repositories; private repositories require an appropriate plan. The scan data remains restricted in Zenodo independently of the repository and Pages visibility.
 
@@ -178,12 +185,13 @@ Only Node.js and Python are required. From the repository root in Windows PowerS
 node --check .\viewer\zenodo-access.js
 node --check .\viewer\i18n.js
 node --check .\viewer\config.js
+node --check .\viewer\area-measurement.js
 node --check .\viewer\app.js
-node --test .\tests\test_i18n.mjs .\tests\test_zenodo_access.mjs
+node --test tests/*.mjs
 py -3.12 -m unittest discover -s tests -p "test_*.py" -v
 ```
 
-The test suite covers, among other things, immediate fragment removal, draft and published endpoints, multi-scan selection, manifest validation, path-traversal protection, exact byte ranges, request deduplication, rejection of `200` responses, rendering levels, translation-catalog parity and fallback behaviour, live language switching and storage separation, the absence of scan files from the web directory, and the local range server.
+The test suite covers, among other things, orientation-independent 3D vector areas for horizontal, tilted, vertical, and concave polygons; XY projections; translation stability; degenerate input; non-planarity detection, warning text, localisation, and measurement integration. It also verifies immediate fragment removal, draft and published endpoints, multi-scan selection, manifest validation, path-traversal protection, exact byte ranges, request deduplication, rejection of `200` responses, rendering levels, translation-catalog parity and fallback behaviour, live language switching and storage separation, the absence of scan files from the web directory, and the local range server.
 
 ## Repository structure
 
@@ -202,6 +210,7 @@ The test suite covers, among other things, immediate fragment removal, draft and
 │   ├── requirements.txt
 │   └── serve_viewer.py
 ├── tests/
+│   ├── test_area_measurement.mjs
 │   ├── test_i18n.mjs
 │   ├── test_static_and_server.py
 │   └── test_zenodo_access.mjs
@@ -211,6 +220,7 @@ The test suite covers, among other things, immediate fragment removal, draft and
     ├── config.js
     ├── zenodo-access.js
     ├── i18n.js
+    ├── area-measurement.js
     ├── app.js
     ├── styles.css
     ├── data/

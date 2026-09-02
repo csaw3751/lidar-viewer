@@ -40,6 +40,7 @@ class StaticSecurityTests(unittest.TestCase):
             ROOT / "scripts" / "build_scan.ps1",
             ROOT / "scripts" / "prepare_pointcloud.py",
             ROOT / "scripts" / "serve_viewer.py",
+            ROOT / "tests" / "test_area_measurement.mjs",
             ROOT / "tests" / "test_i18n.mjs",
             ROOT / "tests" / "test_zenodo_access.mjs",
             ROOT / "tests" / "test_static_and_server.py",
@@ -47,6 +48,7 @@ class StaticSecurityTests(unittest.TestCase):
             VIEWER / "config.js",
             VIEWER / "zenodo-access.js",
             VIEWER / "i18n.js",
+            VIEWER / "area-measurement.js",
             VIEWER / "app.js",
             VIEWER / "styles.css",
             VIEWER / "data" / "README.md",
@@ -87,6 +89,22 @@ class StaticSecurityTests(unittest.TestCase):
             digest.update(b"\0")
             digest.update(hashlib.sha256(path.read_bytes()).digest())
         self.assertEqual(digest.hexdigest(), EXPECTED_VENDOR_DIGEST)
+
+    def test_area_measurement_extension_is_first_party_and_loads_after_vendor(self) -> None:
+        html = (VIEWER / "index.html").read_text(encoding="utf-8")
+        scripts = re.findall(r'<script\s+[^>]*src="([^"]+)"', html)
+
+        self.assertEqual(
+            scripts[-3:],
+            ["config.js", "area-measurement.js", "app.js"],
+        )
+        config_script_index = scripts.index("config.js")
+        area_script_index = scripts.index("area-measurement.js")
+        self.assertGreater(area_script_index, scripts.index("vendor/potree/potree.js"))
+        self.assertEqual(area_script_index, config_script_index + 1)
+        self.assertTrue(
+            all(script.startswith("vendor/") for script in scripts[2:config_script_index])
+        )
 
     def test_potree_patch_propagates_copc_failures(self) -> None:
         potree = (VIEWER / "vendor" / "potree" / "potree.js").read_text(encoding="utf-8")
@@ -132,6 +150,19 @@ class StaticSecurityTests(unittest.TestCase):
             "polygon_clip_volume_removed",
         ):
             self.assertIn(f'addEventListener("{event}"', app)
+
+    def test_3d_area_extension_is_first_party_and_instance_scoped(self) -> None:
+        app = (VIEWER / "app.js").read_text(encoding="utf-8")
+        area = (VIEWER / "area-measurement.js").read_text(encoding="utf-8")
+
+        self.assertIn("AreaMeasurement.enhance(object)", app)
+        self.assertIn("AreaMeasurement.analyseMeasurement(measurement)", app)
+        self.assertIn("AreaMeasurement.refresh(measurement)", app)
+        self.assertIn('setStatus("status.areaNonPlanar", values, "warning")', app)
+        self.assertIn('Object.defineProperty(measurement, "getArea"', area)
+        self.assertIn('Object.defineProperty(measurement, "update"', area)
+        self.assertNotIn("Potree.Measure.prototype", app + area)
+        self.assertNotIn("innerHTML", area)
 
     def test_profile_completion_listener_is_cleaned_up(self) -> None:
         app = (VIEWER / "app.js").read_text(encoding="utf-8")
