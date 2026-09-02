@@ -1,15 +1,14 @@
 /*
- * Diese Datei enthält bewusst weder Zenodo-Record-ID noch Zugangstoken.
- * Beides wird ausschließlich aus dem persönlichen URL-Fragment übernommen.
+ * This file intentionally contains neither a Zenodo record ID nor an access token.
+ * Both values are accepted exclusively from the personal URL fragment.
  */
 window.LIDAR_VIEWER_CONFIG = Object.freeze({
-  name: "Geschützter LiDAR-Viewer",
+  name: null,
   manifestFile: "viewer-manifest.json",
   loadTimeoutMs: 180_000,
   defaultQuality: "auto",
   qualityProfiles: Object.freeze({
     auto: Object.freeze({
-      label: "Auto",
       desktopPointBudget: 3_500_000,
       compactPointBudget: 1_200_000,
       minNodeSize: 20,
@@ -17,7 +16,6 @@ window.LIDAR_VIEWER_CONFIG = Object.freeze({
       shape: "CIRCLE",
     }),
     high: Object.freeze({
-      label: "Hoch",
       desktopPointBudget: 5_500_000,
       compactPointBudget: 2_000_000,
       minNodeSize: 10,
@@ -25,7 +23,6 @@ window.LIDAR_VIEWER_CONFIG = Object.freeze({
       shape: "CIRCLE",
     }),
     maximum: Object.freeze({
-      label: "Maximum",
       desktopPointBudget: 9_000_000,
       compactPointBudget: 3_500_000,
       minNodeSize: 5,

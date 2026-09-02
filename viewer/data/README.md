@@ -1,10 +1,10 @@
-# Punktwolkendaten
+# Point-Cloud Data
 
-Dieser Ordner bleibt leer. Die veröffentlichte GitHub-Pages-Version enthält
-weder Scandaten noch Zugangsdaten. Der persönliche URL-Fragmentlink autorisiert
-den Viewer, `viewer-manifest.json` und die darin genannten `*.copc.laz`-Dateien
-direkt aus dem eingeschränkten Zenodo-Datensatz zu streamen.
+This directory remains empty. The published GitHub Pages version contains
+neither scan data nor access credentials. The personalized URL-fragment link
+authorizes the viewer to stream `viewer-manifest.json` and the referenced
+`*.copc.laz` files directly from the restricted Zenodo dataset.
 
-Scandateien niemals für einen lokalen Test hierher kopieren und anschließend
-versehentlich committen. Der projektweite Git-Schutz blockiert die üblichen
-Punktwolken- und Meshformate zusätzlich.
+Never copy scan files here for a local test and then accidentally commit them.
+The repository-wide Git safeguards additionally block the customary point-cloud
+and mesh formats.

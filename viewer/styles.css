@@ -65,9 +65,15 @@ button:focus-visible {
   display: none !important;
 }
 
+/* The application-level DE/EN switch is the single language control. */
+#potree_languages {
+  display: none !important;
+}
+
 .app-header,
 .toolstrip,
-.status-pill {
+.status-pill,
+.language-switcher {
   position: fixed;
   z-index: 12000;
   color: var(--ink);
@@ -76,6 +82,45 @@ button:focus-visible {
   box-shadow: var(--shadow);
   -webkit-backdrop-filter: blur(18px);
   backdrop-filter: blur(18px);
+}
+
+.language-switcher {
+  position: fixed;
+  z-index: 21000;
+  top: max(14px, env(safe-area-inset-top));
+  right: max(14px, env(safe-area-inset-right));
+  display: flex;
+  gap: 2px;
+  padding: 4px;
+  border-radius: 11px;
+}
+
+.language-switcher button {
+  min-width: 34px;
+  height: 30px;
+  padding: 0 7px;
+  color: var(--muted);
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  cursor: pointer;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
+.language-switcher button:hover,
+.language-switcher button:focus-visible {
+  color: var(--ink);
+  border-color: var(--border-strong);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.language-switcher button.active,
+.language-switcher button[aria-pressed="true"] {
+  color: #07120f;
+  border-color: var(--accent);
+  background: var(--accent);
 }
 
 .app-header {
@@ -628,6 +673,24 @@ button:disabled {
 }
 
 @media (max-width: 900px) {
+  .app-header {
+    right: max(98px, calc(env(safe-area-inset-right) + 84px));
+    width: auto;
+    min-width: 0;
+  }
+
+  .brand-copy {
+    flex: 1 1 auto;
+    max-width: 180px;
+    margin-right: 10px;
+  }
+
+  .scan-picker {
+    min-width: 100px;
+    max-width: 150px;
+    flex: 1 1 100px;
+  }
+
   .toolstrip {
     left: 14px;
     width: calc(100vw - 28px);
@@ -645,14 +708,35 @@ button:disabled {
   }
 }
 
+@media (max-width: 720px) and (min-width: 561px) {
+  .brand-copy {
+    display: none;
+  }
+
+  .scan-picker {
+    min-width: 90px;
+    max-width: none;
+  }
+
+  .wide-label {
+    display: none;
+  }
+
+  .utility-button:not(.round) {
+    width: 34px;
+    padding: 0;
+  }
+}
+
 @media (max-width: 560px) {
   .app-header {
-    right: max(14px, env(safe-area-inset-right));
+    right: max(98px, calc(env(safe-area-inset-right) + 84px));
     width: auto;
     min-width: 0;
   }
 
   .brand-copy {
+    display: flex;
     margin-right: auto;
   }
 

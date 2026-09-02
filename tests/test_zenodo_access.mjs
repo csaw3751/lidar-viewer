@@ -48,11 +48,11 @@ function makeResponse({ url, status = 200, json, bytes, headers = {}, type = "co
 function manifest(file = "scan.copc.laz") {
   return {
     schemaVersion: 1,
-    title: "Testkatalog",
+    title: "Test catalog",
     scans: [{
       id: "scan-one",
-      label: "Scan Eins",
-      source: "Testquelle",
+      label: "Scan One",
+      source: "Test source",
       type: "pointcloud",
       format: "copc",
       file,
@@ -64,12 +64,12 @@ function manifest(file = "scan.copc.laz") {
 function multiScanManifest() {
   return {
     schemaVersion: 1,
-    title: "Testkatalog",
+    title: "Test catalog",
     scans: [
       {
         id: "scan-one",
-        label: "Scan Eins",
-        source: "Testquelle",
+        label: "Scan One",
+        source: "Test source",
         type: "pointcloud",
         format: "copc",
         file: "scan-one.copc.laz",
@@ -77,8 +77,8 @@ function multiScanManifest() {
       },
       {
         id: "scan-two",
-        label: "Scan Zwei",
-        source: "Testquelle",
+        label: "Scan Two",
+        source: "Test source",
         type: "pointcloud",
         format: "copc",
         file: "scan-two.copc.laz",
@@ -88,7 +88,13 @@ function multiScanManifest() {
   };
 }
 
-function loadAccess({ hash = "", fetchImpl, stored = null } = {}) {
+function loadAccess({
+  hash = "",
+  pathname = "/viewer/index.html",
+  search = "",
+  fetchImpl,
+  stored = null,
+} = {}) {
   const sessionStorage = makeStorage();
   if (stored) {
     sessionStorage.setItem("lidar-viewer.zenodo-access.v1", JSON.stringify(stored));
@@ -97,9 +103,9 @@ function loadAccess({ hash = "", fetchImpl, stored = null } = {}) {
   const window = {
     location: {
       hash,
-      pathname: "/viewer/index.html",
-      search: "",
-      href: `https://viewer.example/viewer/index.html${hash}`,
+      pathname,
+      search,
+      href: `https://viewer.example${pathname}${search}${hash}`,
     },
     history: {
       replaceState: (_state, _title, url) => replacements.push(url),
@@ -129,6 +135,28 @@ function loadAccess({ hash = "", fetchImpl, stored = null } = {}) {
   return { access: window.ZenodoViewerAccess, window, replacements, sessionStorage };
 }
 
+async function prepareProtectedGetter(fetchImpl) {
+  const loaded = loadAccess({
+    hash: `#record=12345&token=${TEST_TOKEN}`,
+    fetchImpl,
+  });
+  let pointCloudUrl = null;
+  loaded.window.Copc = { Getter: { http: () => async () => new Uint8Array() } };
+  loaded.window.Potree = {
+    loadPointCloud: async (url) => {
+      pointCloudUrl = url;
+      return { pointcloud: {} };
+    },
+  };
+  await loaded.access.resolveDataset();
+  await loaded.access.loadPointCloud();
+  return {
+    ...loaded,
+    get pointCloudUrl() { return pointCloudUrl; },
+    get getter() { return loaded.window.Copc.Getter.http(pointCloudUrl); },
+  };
+}
+
 test("captures a fragment, scrubs it immediately and keeps access tab-local", () => {
   const { access, replacements, sessionStorage } = loadAccess({
     hash: `#record=12345&token=${TEST_TOKEN}&scan=scan-one`,
@@ -140,6 +168,27 @@ test("captures a fragment, scrubs it immediately and keeps access tab-local", ()
   assert.equal(stored.recordId, "12345");
   assert.equal(stored.scanId, "scan-one");
   assert.equal(stored.token, TEST_TOKEN);
+});
+
+test("scrubs malformed fragments, preserves the path and query, and ignores query credentials", () => {
+  const malformed = loadAccess({
+    hash: "#record=not-a-record&token=too-short",
+    pathname: "/lidar-viewer/index.html",
+    search: "?view=compact",
+  });
+
+  assert.equal(malformed.access.hasAccess, false);
+  assert.deepEqual(malformed.replacements, ["/lidar-viewer/index.html?view=compact"]);
+  assert.equal(malformed.sessionStorage.getItem("lidar-viewer.zenodo-access.v1"), null);
+
+  const queryOnly = loadAccess({
+    pathname: "/lidar-viewer/index.html",
+    search: `?record=12345&token=${TEST_TOKEN}`,
+  });
+
+  assert.equal(queryOnly.access.hasAccess, false);
+  assert.deepEqual(queryOnly.replacements, []);
+  assert.equal(queryOnly.sessionStorage.getItem("lidar-viewer.zenodo-access.v1"), null);
 });
 
 test("rejects a page opened without a personal access fragment", async () => {
@@ -173,6 +222,38 @@ test("loads and validates a protected draft manifest", async () => {
   assert.equal(calls[0].init.credentials, "omit");
   assert.equal(calls[0].init.referrerPolicy, "no-referrer");
   assert.equal(calls[0].init.redirect, "manual");
+});
+
+test("rejects opaque and off-origin manifest redirects before reading their bodies", async () => {
+  const redirects = [
+    { name: "opaque", type: "opaqueredirect", responseUrl: null },
+    { name: "off-origin", type: "cors", responseUrl: "https://attacker.example/manifest.json" },
+  ];
+
+  for (const redirect of redirects) {
+    let response = null;
+    const fetchImpl = async (url) => {
+      response = makeResponse({
+        url: redirect.responseUrl || url,
+        status: 200,
+        json: manifest(),
+        type: redirect.type,
+      });
+      return response;
+    };
+    const { access } = loadAccess({
+      hash: `#record=12345&token=${TEST_TOKEN}`,
+      fetchImpl,
+    });
+
+    await assert.rejects(
+      access.resolveDataset(),
+      (error) => error.code === "unsafe_redirect",
+      redirect.name,
+    );
+    assert.equal(response.bodyRead, false, redirect.name);
+    assert.equal(response.bodyCancelled, true, redirect.name);
+  }
 });
 
 test("selects only a declared scan from a multi-scan manifest", async () => {
@@ -242,6 +323,37 @@ test("rejects manifest traversal before constructing a data URL", async () => {
   await assert.rejects(access.resolveDataset(), (error) => error.code === "invalid_manifest");
 });
 
+test("rejects opaque and off-origin Range redirects before reading their bodies", async () => {
+  const redirects = [
+    { name: "opaque", type: "opaqueredirect", responseUrl: null },
+    { name: "off-origin", type: "cors", responseUrl: "https://attacker.example/scan.copc.laz" },
+  ];
+
+  for (const redirect of redirects) {
+    let response = null;
+    const fetchImpl = async (url, init) => {
+      if (!init.headers.Range) return makeResponse({ url, status: 200, json: manifest() });
+      response = makeResponse({
+        url: redirect.responseUrl || url,
+        status: 206,
+        bytes: Uint8Array.from([76, 65, 83, 70]),
+        headers: { "content-length": "4" },
+        type: redirect.type,
+      });
+      return response;
+    };
+    const loaded = await prepareProtectedGetter(fetchImpl);
+
+    await assert.rejects(
+      loaded.getter(0, 4),
+      (error) => error.code === "unsafe_redirect",
+      redirect.name,
+    );
+    assert.equal(response.bodyRead, false, redirect.name);
+    assert.equal(response.bodyCancelled, true, redirect.name);
+  }
+});
+
 test("protected COPC getter requires an exact 206 Content-Range and deduplicates", async () => {
   const rangeCalls = [];
   const fetchImpl = async (url, init) => {
@@ -289,6 +401,90 @@ test("protected COPC getter requires an exact 206 Content-Range and deduplicates
   assert.equal(rangeCalls.length, 1);
   assert.equal(rangeCalls[0].init.headers.Range, "bytes=0-3");
   assert.equal(originalCalls, 0);
+});
+
+test("rejects invalid Range bounds without making a Range request", async () => {
+  let rangeCalls = 0;
+  const fetchImpl = async (url, init) => {
+    if (!init.headers.Range) return makeResponse({ url, status: 200, json: manifest() });
+    rangeCalls += 1;
+    throw new Error("Invalid bounds must be rejected before fetch");
+  };
+  const loaded = await prepareProtectedGetter(fetchImpl);
+  const invalidRanges = [
+    [-1, 1],
+    [0, 0],
+    [2, 1],
+    [0.5, 2],
+    [0, Number.MAX_SAFE_INTEGER + 1],
+    [0, Number.POSITIVE_INFINITY],
+  ];
+
+  for (const [begin, end] of invalidRanges) {
+    await assert.rejects(
+      loaded.getter(begin, end),
+      (error) => error.code === "invalid_range",
+      `[${begin}, ${end})`,
+    );
+  }
+  assert.equal(rangeCalls, 0);
+});
+
+test("deduplicates simultaneous protected Range requests and returns defensive copies", async () => {
+  let rangeCalls = 0;
+  let releaseRange;
+  const rangeReleased = new Promise((resolve) => { releaseRange = resolve; });
+  const fetchImpl = async (url, init) => {
+    if (!init.headers.Range) return makeResponse({ url, status: 200, json: manifest() });
+    rangeCalls += 1;
+    await rangeReleased;
+    return makeResponse({
+      url,
+      status: 206,
+      bytes: Uint8Array.from([76, 65, 83, 70]),
+      headers: {
+        "content-length": "4",
+        "content-range": "bytes 0-3/99941088",
+      },
+    });
+  };
+  const loaded = await prepareProtectedGetter(fetchImpl);
+
+  const firstPending = loaded.getter(0, 4);
+  const secondPending = loaded.getter(0, 4);
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(rangeCalls, 1);
+  releaseRange();
+
+  const [first, second] = await Promise.all([firstPending, secondPending]);
+  assert.deepEqual(Array.from(first), [76, 65, 83, 70]);
+  assert.deepEqual(Array.from(second), [76, 65, 83, 70]);
+  assert.notEqual(first.buffer, second.buffer);
+});
+
+test("keeps privacy controls on protected Range requests", async () => {
+  let rangeCall = null;
+  const fetchImpl = async (url, init) => {
+    if (!init.headers.Range) return makeResponse({ url, status: 200, json: manifest() });
+    rangeCall = { url, init };
+    return makeResponse({
+      url,
+      status: 206,
+      bytes: Uint8Array.from([76, 65, 83, 70]),
+      headers: { "content-length": "4" },
+    });
+  };
+  const loaded = await prepareProtectedGetter(fetchImpl);
+
+  await loaded.getter(4, 8);
+
+  assert.equal(new URL(rangeCall.url).origin, "https://zenodo.org");
+  assert.equal(new URL(rangeCall.url).searchParams.get("token"), TEST_TOKEN);
+  assert.equal(rangeCall.init.headers.Range, "bytes=4-7");
+  assert.equal(rangeCall.init.credentials, "omit");
+  assert.equal(rangeCall.init.referrerPolicy, "no-referrer");
+  assert.equal(rangeCall.init.cache, "no-store");
+  assert.equal(rangeCall.init.redirect, "manual");
 });
 
 test("accepts exact Zenodo 206 when CORS hides Content-Range", async () => {
@@ -451,4 +647,33 @@ test("leaves non-Zenodo getters untouched", async () => {
   const bytes = await loaded.window.Copc.Getter.http("https://example.org/public.copc.laz")(0, 1);
   assert.equal(originalCalls, 1);
   assert.equal(bytes.length, 1);
+});
+
+test("delegates external and tokenless Zenodo URLs and installs the protected getter once", async () => {
+  const loaded = loadAccess();
+  const originalUrls = [];
+  loaded.window.Copc = {
+    Getter: {
+      http: (url) => {
+        originalUrls.push(url);
+        return async () => Uint8Array.from([originalUrls.length]);
+      },
+    },
+  };
+
+  loaded.access.installCopcGetter();
+  const installedGetter = loaded.window.Copc.Getter.http;
+  loaded.access.installCopcGetter();
+
+  assert.equal(loaded.window.Copc.Getter.http, installedGetter);
+  assert.equal(loaded.window.Copc.Getter.__zenodoProtectedViewer, true);
+
+  const externalUrl = `https://example.org/public.copc.laz?token=${TEST_TOKEN}`;
+  const tokenlessZenodoUrl = "https://zenodo.org/api/records/12345/files/public.copc.laz/content";
+  const external = await loaded.window.Copc.Getter.http(externalUrl)(0, 1);
+  const tokenless = await loaded.window.Copc.Getter.http(tokenlessZenodoUrl)(0, 1);
+
+  assert.deepEqual(originalUrls, [externalUrl, tokenlessZenodoUrl]);
+  assert.deepEqual(Array.from(external), [1]);
+  assert.deepEqual(Array.from(tokenless), [2]);
 });

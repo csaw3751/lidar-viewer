@@ -1,19 +1,21 @@
-# Geschützter LiDAR-Viewer mit GitHub Pages und Zenodo
+# Protected LiDAR Viewer with GitHub Pages and Zenodo
 
-Dieses Paket stellt Potree als statische Website bereit. Die Website enthält **keine Scandaten, keine Zenodo-Record-ID und kein Zugangstoken**. Punktwolken werden erst nach dem Öffnen eines persönlichen Geheimlinks bereichsweise aus einem eingeschränkten Zenodo-Datensatz geladen.
+**English** | [Deutsch](README.de.md)
 
-## Was nach Zenodo gehört
+This package deploys Potree as a static website. The website contains **no scan data, Zenodo record ID, or access token**. Point clouds are streamed by byte range from a restricted Zenodo record only after a personal secret link is opened.
 
-Für den Browser-Viewer werden nur diese Dateien benötigt:
+## What belongs in Zenodo
 
-1. genau eine `viewer-manifest.json`;
-2. je Scan genau eine weboptimierte `*.copc.laz`.
+The browser viewer requires only:
 
-E57, PLY, normale LAZ, GLB, Grundrisse und weitere Originale können zusätzlich als Archivkopien in Zenodo liegen, werden von diesem Potree-Viewer aber nicht geladen. HTML, JavaScript, Potree und dieses Repository gehören **nicht** in den Zenodo-Datensatz.
+1. exactly one `viewer-manifest.json`; and
+2. exactly one web-optimised `*.copc.laz` file per scan.
 
-Der aktuelle SiteScape-Datensatz besteht damit aus fünf Viewer-Dateien: einem Manifest und vier COPC-Dateien. Weitere Scans werden in einer neuen Zenodo-Version als zusätzliche COPC-Dateien ergänzt und im Manifest eingetragen.
+E57, PLY, conventional LAZ, GLB, floor plans, and other source files may additionally be stored in Zenodo as archival copies, but this Potree viewer does not load them. HTML, JavaScript, Potree, and this repository **do not** belong in the Zenodo record.
 
-Beispiel für mehrere Scans:
+The current SiteScape dataset therefore consists of five viewer files: one manifest and four COPC files. Add further scans as additional COPC files in a new Zenodo version and list them in the manifest.
+
+Example with multiple scans:
 
 ```json
 {
@@ -42,37 +44,49 @@ Beispiel für mehrere Scans:
 }
 ```
 
-Dateinamen müssen einfache Namen ohne Verzeichnisse sein und auf `.copc.laz` enden. Optionale Manifestfelder sind `points`, `extent`, `attributes` und `webFormat`.
+File names must be plain names without directory components and must end in `.copc.laz`. Optional manifest fields are `points`, `extent`, `attributes`, and `webFormat`.
 
-## Zenodo-Datensatz veröffentlichen
+## Publishing the Zenodo record
 
-Vor **Publish** müssen alle Viewer-Dateien 100 % anzeigen und eine Prüfsumme besitzen. Danach den Entwurf speichern, über den persönlichen Geheimlink einmal öffnen und alle Scans im Auswahlmenü testen. Die Sichtbarkeit bleibt auf **Files only → Restricted**; ein Embargo ist für dieses Freigabemodell nicht nötig.
+Before selecting **Publish**, verify that every viewer file shows 100% upload progress and has a checksum. Save the draft, open it once through the personal secret link, and test every scan in the selection menu. Keep visibility set to **Files only → Restricted**; this sharing model does not require an embargo.
 
-Beim Veröffentlichen werden Datensatzseite und Metadaten öffentlich, die Dateien bleiben eingeschränkt. Der vorhandene Link mit `Can preview drafts` berechtigt laut Zenodo auch zum Zugriff auf eingeschränkte Dateien aktueller und zukünftiger Versionen. Für eine reine Freigabe der veröffentlichten Fassung kann alternativ pro Person ein Link mit `Can view` erzeugt werden. Der Viewer probiert automatisch zuerst den Entwurf und anschließend die veröffentlichte Fassung.
+Publishing makes the record page and its metadata public while the files remain restricted. According to Zenodo, an existing link with `Can preview drafts` also grants access to restricted files in current and future versions. Alternatively, create an individual `Can view` link when sharing only the published version. The viewer automatically tries the draft first and then the published record.
 
-Veröffentlichte Dateien sollten praktisch als unveränderlich behandelt werden. Inhaltliche Ergänzungen oder neue Scans gehören in eine neue Zenodo-Version; dadurch bleibt die vorherige Fassung nachvollziehbar.
+Treat published files as effectively immutable. Additions and new scans belong in a new Zenodo version so that the preceding version remains traceable.
 
-## Lokal testen
+## Language selection
 
-Aus dem Projektstamm unter Windows PowerShell:
+The complete viewer interface, including help, tooltips, dialogs, status and error messages, and the embedded Potree controls, is available in English and German. The **DE/EN** control changes the language immediately without reloading the point cloud.
+
+The initial language is selected in this order:
+
+1. a valid saved value (`en` or `de`) from `lidar-viewer.language.v1`;
+2. the first supported preference in `navigator.languages`, using its primary language subtag (for example, `de-AT` becomes `de`); if that list is unavailable, `navigator.language` is used; and
+3. English if no supported browser preference is found.
+
+Changing the language stores only the language preference in `localStorage`. The rendering-quality preference uses its own independent `localStorage` entry. The Zenodo record ID and token are never placed there: access data remains separate in tab-local `sessionStorage`. Labels and metadata supplied by `viewer-manifest.json` remain exactly as authored and are not translated.
+
+## Testing locally
+
+From the project root in Windows PowerShell:
 
 ```powershell
 py -3.12 .\scripts\serve_viewer.py --port 8765
 ```
 
-Anschließend den persönlichen Viewer-Link im Browser öffnen:
+Then open the personal viewer link in a browser:
 
 ```text
 http://127.0.0.1:8765/index.html#record=RECORD_ID&token=SECRET
 ```
 
-`RECORD_ID` und `SECRET` stammen aus dem von Zenodo erzeugten Geheimlink. Der Viewer entfernt das Fragment sofort aus der Adresszeile und behält den Zugang nur in der aktuellen Tab-Sitzung (`sessionStorage`). Beim Schließen aller Kopien des Tabs oder über „Zugang aus diesem Tab entfernen“ wird er verworfen. Für die Origin-Trennung siehe [SECURITY.md](SECURITY.md).
+`RECORD_ID` and `SECRET` come from the secret link generated by Zenodo. The viewer immediately removes the fragment from the address bar and retains access only for the current tab session (`sessionStorage`). Access is discarded when all copies of the tab are closed or when **Remove access from this tab** is selected. See [SECURITY.md](SECURITY.md) for the implications of storage being separated by origin.
 
-Der Link funktioniert sowohl mit einem unveröffentlichten Entwurf (`Can preview drafts`) als auch nach der eingeschränkten Veröffentlichung. Der Viewer ermittelt den passenden Zenodo-Endpunkt automatisch.
+The link works both with an unpublished draft (`Can preview drafts`) and after restricted publication. The viewer determines the appropriate Zenodo endpoint automatically.
 
-## Weitere SiteScape-Scans aufbereiten
+## Preparing additional SiteScape scans
 
-Das mitgelieferte PowerShell-Skript verwendet die systemweite Python-3.12-Installation und installiert fehlende, festgeschriebene Pakete für das Windows-Benutzerkonto; es legt keine virtuelle Umgebung an. Für einen einzelnen Scan:
+The supplied PowerShell script uses the system-wide Python 3.12 installation and installs missing pinned packages for the Windows user account; it does not create a virtual environment. For a single scan:
 
 ```powershell
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
@@ -82,7 +96,7 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
   -Slug "spz-squash"
 ```
 
-Eine bereits geometrisch geprüfte, geteilte E57-Aufnahme kann ohne Ausdünnung in eine gemeinsame COPC-Datei geschrieben werden:
+An already verified, split E57 capture can be written to one COPC file without thinning:
 
 ```powershell
 & .\scripts\build_scan.ps1 `
@@ -92,134 +106,135 @@ Eine bereits geometrisch geprüfte, geteilte E57-Aufnahme kann ohne Ausdünnung 
   -AssumeCommonCoordinates
 ```
 
-`-AssumeCommonCoordinates` bestätigt bewusst, dass Pose, Grenzen und Überlappung zuvor geprüft wurden; das Skript führt keine automatische Registrierung oder ICP-Ausrichtung durch.
+`-AssumeCommonCoordinates` explicitly confirms that pose, bounds, and overlap have already been checked; the script performs no automatic registration or ICP alignment.
 
-## Darstellungsqualität
+## Rendering quality
 
-Die Auswahl **Auto / Hoch / Maximum** wirkt sofort und verändert weder COPC-Datei noch Messwerte. Die Stufen erhöhen ausschließlich den gleichzeitig dargestellten Detailgrad:
+Selecting **Auto / High / Maximum** takes effect immediately and changes neither the COPC file nor its measurements. The levels affect only how much detail is displayed at one time:
 
-| Stufe | Desktop | Kompakte Geräte | Verwendung |
+| Level | Desktop | Compact devices | Intended use |
 |---|---:|---:|---|
-| Auto | bis 3,5 Mio. Punkte | bis 1,2 Mio. Punkte | ausgewogene Voreinstellung |
-| Hoch | bis 5,5 Mio. Punkte | bis 2,0 Mio. Punkte | detaillierte normale Untersuchung |
-| Maximum | bis 9,0 Mio. Punkte | bis 3,5 Mio. Punkte | feinste Ansicht auf leistungsfähiger Hardware |
+| Auto | up to 3.5 million points | up to 1.2 million points | balanced default |
+| High | up to 5.5 million points | up to 2.0 million points | detailed routine inspection |
+| Maximum | up to 9.0 million points | up to 3.5 million points | finest view on capable hardware |
 
-Alle Stufen verwenden adaptive, runde Punkte und eine zunehmend feinere Potree-LOD-Schwelle. Höhere Stufen benötigen mehr Zenodo-Anfragen, Grafikleistung und Arbeitsspeicher. Gespeichert wird nur die Qualitätswahl in `localStorage`; der Zenodo-Zugang bleibt davon getrennt und ausschließlich tab-lokal in `sessionStorage`.
+All levels use adaptive round points and progressively finer Potree LOD thresholds. Higher levels require more Zenodo requests, graphics performance, and memory. Only the quality choice is stored under its dedicated key in `localStorage`; Zenodo access remains separate and exclusively tab-local in `sessionStorage`.
 
-## Auf GitHub Pages bereitstellen
+## Deploying to GitHub Pages
 
-1. Inhalt dieses Verzeichnisses in ein eigenes GitHub-Repository übernehmen.
-2. Auf GitHub unter **Settings → Pages → Build and deployment → Source** den Eintrag **GitHub Actions** auswählen.
-3. Den Lauf **Deploy protected LiDAR viewer** unter **Actions** abwarten.
-4. Die angezeigte Pages-Adresse öffnen. Sie hat typischerweise dieses Schema:
+1. Copy the contents of this directory into a dedicated GitHub repository.
+2. On GitHub, select **Settings → Pages → Build and deployment → Source → GitHub Actions**.
+3. Wait for **Deploy protected LiDAR viewer** to finish under **Actions**.
+4. Open the displayed Pages address. Its usual form is:
 
 ```text
 https://USERNAME.github.io/REPOSITORY/
 ```
 
-Der mitgelieferte Workflow veröffentlicht ausschließlich den Ordner `viewer/`. Tests, Skripte und Dokumentation werden nicht als Website ausgeliefert.
+The supplied workflow publishes only the `viewer/` directory. Tests, scripts, and documentation are not deployed as part of the website.
 
-GitHub Pages selbst ist in diesem Aufbau öffentlich erreichbar; das ist beabsichtigt, weil die Seite nur die Viewer-Hülle enthält. GitHub weist darauf hin, dass eine Pages-Site auch bei einem privaten Repository öffentlich sein kann. Auf GitHub Free steht Pages regulär für öffentliche Repositorys zur Verfügung; private Repositorys benötigen einen passenden Tarif. Die Scandaten bleiben unabhängig davon in Zenodo eingeschränkt.
+GitHub Pages itself is publicly reachable in this setup. This is intentional because the site contains only the viewer shell. GitHub notes that a Pages site may be public even when its repository is private. GitHub Free generally provides Pages for public repositories; private repositories require an appropriate plan. The scan data remains restricted in Zenodo independently of the repository and Pages visibility.
 
-## Persönlichen Viewer-Link zusammensetzen
+## Constructing a personal viewer link
 
-Ein Zenodo-Geheimlink enthält dieselben beiden Werte:
+A Zenodo secret link contains the same two values required by the viewer:
 
 ```text
 https://zenodo.org/records/RECORD_ID?preview=1&token=SECRET
 ```
 
-Für die Empfängerin oder den Empfänger wird daraus:
+Transform it into the link sent to a recipient:
 
 ```text
 https://USERNAME.github.io/REPOSITORY/#record=RECORD_ID&token=SECRET
 ```
 
-Optional kann ein bestimmter Scan vorausgewählt werden:
+Optionally preselect a particular scan:
 
 ```text
 https://USERNAME.github.io/REPOSITORY/#record=RECORD_ID&token=SECRET&scan=SCAN_ID
 ```
 
-Den vollständigen persönlichen Link niemals in Git, GitLab, eine öffentliche README, ein Issue oder einen Screenshot kopieren. Für jede Person sollte in Zenodo ein eigener, möglichst befristeter Link erzeugt werden. Ein Link kann dort jederzeit widerrufen werden.
+Never copy the complete personal link into Git, GitLab, a public README, an issue, or a screenshot. Create a separate, preferably time-limited Zenodo link for each person. Each link can be revoked in Zenodo at any time.
 
-## Sicherheitsmodell
+## Security model
 
-- Das URL-Fragment wird nicht an GitHub Pages gesendet und sofort aus der Adresszeile entfernt.
-- Zenodo-Origin und API-Pfade sind fest vorgegeben; beliebige `?data=`-Quellen sind deaktiviert.
-- Der Token wird weder in Konfiguration noch DOM, Konsolenausgaben oder `localStorage` geschrieben.
-- COPC-Anfragen akzeptieren ausschließlich exakte HTTP-`206`-Bytebereiche. Eine vollständige `200`-Antwort wird vor dem Einlesen abgebrochen.
-- Wiederholte Bereiche werden im Speicher dedupliziert; Starts werden auf etwa 40 Anfragen pro Minute begrenzt, unterhalb von Zenodos dokumentiertem Gastlimit von 60 pro Minute.
-- CSP, `no-referrer` und `noindex` reduzieren unbeabsichtigte Weitergabe und Auffindbarkeit.
+- The URL fragment is not sent to GitHub Pages and is removed from the address bar immediately.
+- The Zenodo origin and API paths are fixed; arbitrary `?data=` sources are disabled.
+- The token is never written to configuration, the DOM, console output, or `localStorage`.
+- COPC requests accept only exact HTTP `206` byte ranges. A complete `200` response is rejected before its body is read.
+- Duplicate ranges are deduplicated in memory, and request starts are limited to approximately 40 per minute, below Zenodo's documented guest limit of 60 per minute.
+- CSP, `no-referrer`, and `noindex` reduce accidental disclosure and discoverability.
 
-Ein Geheimlink ist kein DRM: Wer den Link erhalten hat, darf die Daten im Browser laden und kann sie mit Entwicklerwerkzeugen grundsätzlich auch herunterladen. Nicht berechtigte Personen erhalten ohne Token keinen Zugriff.
+A secret link is not DRM: anyone who receives the link may load the data in the browser and can, in principle, download it using developer tools. Anyone without the token cannot access the restricted files.
 
-Weitere Hinweise stehen in [SECURITY.md](SECURITY.md).
+See [SECURITY.md](SECURITY.md) for further guidance.
 
-## Tests ausführen
+## Running the tests
 
-Es werden nur Node.js und Python benötigt:
+Only Node.js and Python are required. From the repository root in Windows PowerShell:
 
 ```powershell
 node --check .\viewer\zenodo-access.js
+node --check .\viewer\i18n.js
+node --check .\viewer\config.js
 node --check .\viewer\app.js
-node --test .\tests\test_zenodo_access.mjs
-py -3.12 -m unittest -v tests.test_static_and_server
+node --test .\tests\test_i18n.mjs .\tests\test_zenodo_access.mjs
+py -3.12 -m unittest discover -s tests -p "test_*.py" -v
 ```
 
-Die Tests prüfen unter anderem Fragmentbereinigung, Draft-/Published-Endpunkte, Mehrscan-Auswahl, Manifestvalidierung, Traversal-Schutz, exakte Bytebereiche, Deduplizierung, Abbruch bei `200`, Darstellungsstufen, fehlende Scandateien im Webordner und den lokalen Range-Server.
+The test suite covers, among other things, immediate fragment removal, draft and published endpoints, multi-scan selection, manifest validation, path-traversal protection, exact byte ranges, request deduplication, rejection of `200` responses, rendering levels, translation-catalog parity and fallback behaviour, live language switching and storage separation, the absence of scan files from the web directory, and the local range server.
 
-## Verzeichnisstruktur
+## Repository structure
 
 ```text
 .
-├── .github/workflows/deploy-pages.yml
+├── .github/
+│   └── workflows/
+│       └── deploy-pages.yml
 ├── README.md
+├── README.de.md
 ├── SECURITY.md
+├── THIRD_PARTY_NOTICES.md
 ├── scripts/
 │   ├── build_scan.ps1
 │   ├── prepare_pointcloud.py
 │   ├── requirements.txt
 │   └── serve_viewer.py
 ├── tests/
+│   ├── test_i18n.mjs
+│   ├── test_static_and_server.py
+│   └── test_zenodo_access.mjs
 └── viewer/
     ├── .nojekyll
     ├── index.html
     ├── config.js
     ├── zenodo-access.js
+    ├── i18n.js
     ├── app.js
     ├── styles.css
-    ├── data/README.md
+    ├── data/
+    │   └── README.md
     └── vendor/
 ```
 
-## Referenzen
+## References
 
 - [Zenodo: Link sharing](https://help.zenodo.org/docs/share/link-sharing/)
 - [Zenodo: About records](https://help.zenodo.org/docs/deposit/about-records/)
 - [Zenodo: Manage versions](https://help.zenodo.org/docs/deposit/manage-versions/)
-- [Zenodo: REST API und Rate Limits](https://developers.zenodo.org/)
-- [GitHub: Pages mit GitHub Actions veröffentlichen](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages)
+- [Zenodo: REST API and rate limits](https://developers.zenodo.org/)
+- [GitHub: Publishing a Pages site with GitHub Actions](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages)
 - [Potree](https://github.com/potree/potree)
 
+## Open-source components and acknowledgements
 
-## Open-Source-Komponenten und Danksagung
+This viewer builds on the following open-source projects:
 
-Dieser Viewer baut auf folgenden Open-Source-Projekten auf:
+- [Potree 1.8](https://github.com/potree/potree), a WebGL viewer for large point clouds by Markus Schütz and contributors — BSD-2-Clause licence.
+- [copc.js](https://github.com/connormanning/copc.js), a library for reading and streaming Cloud-Optimized Point Clouds (COPC) by Connor Manning — MIT licence.
+- [copc-converter](https://github.com/360-geo/copc-converter), used during preprocessing to convert LAS/LAZ to COPC — MIT licence.
 
-- [Potree 1.8](https://github.com/potree/potree), ein WebGL-Viewer für große
-  Punktwolken von Markus Schütz und Mitwirkenden — BSD-2-Clause-Lizenz.
-- [copc.js](https://github.com/connormanning/copc.js), eine Bibliothek zum
-  Lesen und Streamen von Cloud-Optimized Point Clouds (COPC) von
-  Connor Manning — MIT-Lizenz.
-- [copc-converter](https://github.com/360-geo/copc-converter), verwendet bei
-  der Vorverarbeitung zur Konvertierung von LAS/LAZ nach COPC —
-  MIT-Lizenz.
+The project-specific interface, protected Zenodo access layer, processing of multipart captures, and GitHub Pages workflow were developed for this master's thesis project.
 
-Die projektspezifische Benutzeroberfläche, die geschützte Zenodo-Zugriffsschicht,
-die Verarbeitung mehrteiliger Aufnahmen und der GitHub-Pages-Workflow wurden für
-dieses Masterarbeitsprojekt entwickelt.
-
-Die vollständigen Copyright- und Lizenzhinweise der eingebundenen Komponenten
-befinden sich in [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) sowie in den
-mitgelieferten Lizenzdateien der jeweiligen Bibliotheken.
+Complete copyright and licence notices for bundled components are available in [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) and in the licence files distributed with the respective libraries.

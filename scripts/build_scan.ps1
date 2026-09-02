@@ -2,43 +2,42 @@
 
 <#
 .SYNOPSIS
-Bereitet einen oder mehrere SiteScape-Scanteile reproduzierbar fuer den Potree-Webviewer vor.
+Prepares one or more SiteScape scan parts reproducibly for the Potree web viewer.
 
 .DESCRIPTION
-Das Skript verwendet Python 3.12 aus der systemweiten Python-Installation und
-installiert fehlende, festgeschriebene Pakete einmalig fuer das aktuelle
-Windows-Benutzerkonto. Es erstellt keine virtuelle Python-Umgebung.
+The script uses Python 3.12 from the system-wide Python installation and installs
+missing pinned packages once for the current Windows user account. It does not
+create a virtual Python environment.
 
-Eine farbige E57- oder SiteScape-PLY-Datei wird zuerst nach LAZ und
-anschliessend nach COPC konvertiert. Mehrere pose-freie E57-Teile koennen
-ohne Registrierung, Ausduennung oder Deduplizierung in genau eine LAZ/COPC-
-Datei geschrieben werden. Beide Konvertierungsschritte werden geprueft. Erst
-nach erfolgreicher Validierung werden die Ergebnisse in source/,
-viewer/data/ und qa/ abgelegt.
+A colored E57 or SiteScape PLY file is first converted to LAZ and then to COPC.
+Multiple pose-free E57 parts can be written to exactly one LAZ/COPC file without
+registration, downsampling, or deduplication. Both conversion steps are checked.
+The results are placed in source/, viewer/data/, and qa/ only after successful
+validation.
 
 .PARAMETER InputFile
-Pfad zu einer E57- oder binaeren SiteScape-PLY-Datei. Fuer eine geteilte
-Aufnahme mehrere E57-Pfade als Array uebergeben.
+Path to an E57 or binary SiteScape PLY file. For a split scan, pass multiple E57
+paths as an array.
 
 .PARAMETER Name
-Lesbarer Scanname, zum Beispiel "SPZ Squash".
+Human-readable scan name, for example "SPZ Squash".
 
 .PARAMETER Slug
-Dateisicherer, kleingeschriebener Bezeichner, zum Beispiel "spz-squash".
-Ohne Angabe wird er aus Name erzeugt.
+File-safe lowercase identifier, for example "spz-squash". If omitted, it is
+generated from Name.
 
 .PARAMETER PlyUp
-Hochachse der PLY-Eingabe. SiteScape verwendet normalerweise Y; E57 wird
-von dieser Einstellung nicht beeinflusst.
+Up axis of the PLY input. SiteScape normally uses Y; this setting does not affect
+E57 input.
 
 .PARAMETER AssumeCommonCoordinates
-Bestaetigt bei mehreren E57-Dateien bewusst, dass eine vorangegangene
-Header-/Geometriepruefung ein gemeinsames Koordinatensystem ergeben hat.
-Das Skript fuehrt selbst keine Registrierung oder ICP-Ausrichtung durch.
+Explicitly acknowledges for multiple E57 files that a preceding header/geometry
+check established a common coordinate system. The script itself does not perform
+registration or ICP alignment.
 
 .PARAMETER Force
-Ersetzt bereits vorhandene Ergebnisdateien fuer denselben Slug. Andere
-Scans und sonstige Dateien werden nicht veraendert.
+Replaces existing result files for the same slug. Other scans and files are not
+modified.
 
 .EXAMPLE
 .\scripts\build_scan.ps1 -InputFile "C:\Scans\SPZ Squash.e57" `
@@ -52,7 +51,7 @@ Scans und sonstige Dateien werden nicht veraendert.
 .\scripts\build_scan.ps1 -InputFile @( `
   "C:\Scans\SPZ Lueftung_1.e57", `
   "C:\Scans\SPZ Lueftung_2.e57" `
-) -Name "Sportzentrum - Lueftung" -Slug "spz-lueftung" `
+) -Name "Sports Center - Ventilation" -Slug "spz-lueftung" `
   -AssumeCommonCoordinates
 #>
 
@@ -104,8 +103,8 @@ function Invoke-CheckedCommand {
     $previousErrorAction = $ErrorActionPreference
     $exitCode = $null
     try {
-        # Windows PowerShell 5.1 kann Text auf stderr sonst trotz erfolgreichem
-        # Prozess als terminierenden NativeCommandError behandeln.
+        # Windows PowerShell 5.1 may otherwise treat text on stderr as a
+        # terminating NativeCommandError even when the process succeeds.
         $ErrorActionPreference = "Continue"
         & $Executable @Arguments
         $exitCode = $LASTEXITCODE
@@ -114,7 +113,7 @@ function Invoke-CheckedCommand {
         $ErrorActionPreference = $previousErrorAction
     }
     if ($null -eq $exitCode -or $exitCode -ne 0) {
-        throw "$Description ist mit Exitcode $exitCode fehlgeschlagen."
+        throw "$Description failed with exit code $exitCode."
     }
 }
 
@@ -163,7 +162,7 @@ function Resolve-PythonLauncher {
         }
     }
 
-    throw "Der Windows-Python-Launcher 'py.exe' wurde nicht gefunden. Bitte Python 3.12 (64 Bit) von https://www.python.org/downloads/windows/ mitsamt Launcher installieren."
+    throw "The Windows Python launcher 'py.exe' was not found. Install Python 3.12 (64-bit), including the launcher, from https://www.python.org/downloads/windows/."
 }
 
 function Get-CopcConverter {
@@ -173,7 +172,7 @@ function Get-CopcConverter {
     )
 
     if (-not [Environment]::Is64BitOperatingSystem) {
-        throw "Der bereitgestellte COPC-Converter benoetigt 64-Bit-Windows."
+        throw "The provided COPC converter requires 64-bit Windows."
     }
 
     $installDirectory = Join-Path $ToolsDirectory "copc-converter-$CopcVersion"
@@ -182,7 +181,7 @@ function Get-CopcConverter {
         Unblock-File -LiteralPath $converter -ErrorAction SilentlyContinue
         $versionOutput = (& $converter --version 2>&1 | Out-String).Trim()
         if ($LASTEXITCODE -ne 0 -or $versionOutput -notmatch [regex]::Escape($CopcVersion)) {
-            throw "Vorhandener COPC-Converter ist nicht Version $CopcVersion`: $versionOutput"
+            throw "The existing COPC converter is not version $CopcVersion`: $versionOutput"
         }
         return $converter
     }
@@ -196,22 +195,22 @@ function Get-CopcConverter {
         $existingHash = (Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash.ToLowerInvariant()
         $archiveIsValid = $existingHash -eq $CopcArchiveSha256
         if (-not $archiveIsValid) {
-            Write-Warning "Der vorhandene Download hat eine falsche SHA-256-Pruefsumme und wird erneut geladen."
+            Write-Warning "The existing download has an incorrect SHA-256 checksum and will be downloaded again."
             Remove-Item -LiteralPath $archive -Force
         }
     }
 
     if (-not $archiveIsValid) {
-        Write-Step "COPC-Converter $CopcVersion herunterladen"
+        Write-Step "Download COPC converter $CopcVersion"
         $partialArchive = "$archive.partial.$([Guid]::NewGuid().ToString('N'))"
         try {
-            # TLS 1.2 ist fuer aeltere Windows-PowerShell-Installationen noetig.
+            # TLS 1.2 is required for older Windows PowerShell installations.
             [Net.ServicePointManager]::SecurityProtocol =
                 [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
             Invoke-WebRequest -Uri $CopcDownloadUrl -OutFile $partialArchive -UseBasicParsing | Out-Null
             $downloadHash = (Get-FileHash -LiteralPath $partialArchive -Algorithm SHA256).Hash.ToLowerInvariant()
             if ($downloadHash -ne $CopcArchiveSha256) {
-                throw "SHA-256-Pruefung fehlgeschlagen. Erwartet: $CopcArchiveSha256; erhalten: $downloadHash"
+                throw "SHA-256 verification failed. Expected: $CopcArchiveSha256; received: $downloadHash"
             }
             Move-Item -LiteralPath $partialArchive -Destination $archive
         }
@@ -229,7 +228,7 @@ function Get-CopcConverter {
         $candidate = Get-ChildItem -LiteralPath $extractDirectory -Filter "copc_converter.exe" -File -Recurse |
             Select-Object -First 1
         if ($null -eq $candidate) {
-            throw "Das gepruefte ZIP enthaelt keine copc_converter.exe."
+            throw "The verified ZIP archive does not contain copc_converter.exe."
         }
 
         New-Item -ItemType Directory -Path $installDirectory -Force | Out-Null
@@ -244,7 +243,7 @@ function Get-CopcConverter {
 
     $installedVersion = (& $converter --version 2>&1 | Out-String).Trim()
     if ($LASTEXITCODE -ne 0 -or $installedVersion -notmatch [regex]::Escape($CopcVersion)) {
-        throw "Der installierte COPC-Converter meldet nicht Version $CopcVersion`: $installedVersion"
+        throw "The installed COPC converter does not report version $CopcVersion`: $installedVersion"
     }
     return $converter
 }
@@ -254,10 +253,10 @@ $PrepareScript = Join-Path $PSScriptRoot "prepare_pointcloud.py"
 $Requirements = Join-Path $PSScriptRoot "requirements.txt"
 
 if (-not (Test-Path -LiteralPath $PrepareScript -PathType Leaf)) {
-    throw "Hilfsskript fehlt: $PrepareScript"
+    throw "Helper script is missing: $PrepareScript"
 }
 if (-not (Test-Path -LiteralPath $Requirements -PathType Leaf)) {
-    throw "Python-Anforderungen fehlen: $Requirements"
+    throw "Python requirements file is missing: $Requirements"
 }
 
 $ResolvedInputs = @()
@@ -267,20 +266,20 @@ foreach ($inputPath in @($InputFile)) {
         $resolvedPath = (Resolve-Path -LiteralPath $inputPath -ErrorAction Stop).Path
     }
     catch {
-        throw "Eingabedatei nicht gefunden: $inputPath"
+        throw "Input file not found: $inputPath"
     }
     if (-not (Test-Path -LiteralPath $resolvedPath -PathType Leaf)) {
-        throw "Die Eingabe ist keine Datei: $resolvedPath"
+        throw "The input is not a file: $resolvedPath"
     }
     $inputKey = $resolvedPath.ToLowerInvariant()
     if ($SeenInputs.ContainsKey($inputKey)) {
-        throw "Dieselbe Eingabedatei wurde mehrfach angegeben: $resolvedPath"
+        throw "The same input file was specified more than once: $resolvedPath"
     }
     $SeenInputs[$inputKey] = $true
     $ResolvedInputs += $resolvedPath
 }
 if ($ResolvedInputs.Count -eq 0) {
-    throw "Mindestens eine Eingabedatei ist erforderlich."
+    throw "At least one input file is required."
 }
 
 $InputExtensions = @($ResolvedInputs | ForEach-Object {
@@ -288,16 +287,16 @@ $InputExtensions = @($ResolvedInputs | ForEach-Object {
 })
 foreach ($inputExtension in $InputExtensions) {
     if ($inputExtension -notin @(".e57", ".ply")) {
-        throw "Nicht unterstuetztes Format '$inputExtension'. Erlaubt sind .e57 und .ply."
+        throw "Unsupported format '$inputExtension'. Allowed formats are .e57 and .ply."
     }
 }
 $IsMultipart = $ResolvedInputs.Count -gt 1
 if ($IsMultipart) {
     if (@($InputExtensions | Where-Object { $_ -ne ".e57" }).Count -gt 0) {
-        throw "Mehrteilige Aufnahmen werden derzeit nur als E57-Dateien unterstuetzt."
+        throw "Multipart scans are currently supported only as E57 files."
     }
     if (-not $AssumeCommonCoordinates) {
-        throw "Mehrere E57-Dateien werden nur mit -AssumeCommonCoordinates zusammengefuehrt. Zuerst Header und geometrische Ueberlappung pruefen."
+        throw "Multiple E57 files are combined only with -AssumeCommonCoordinates. Check their headers and geometric overlap first."
     }
 }
 $InputExtension = $InputExtensions[0]
@@ -309,7 +308,7 @@ else {
     $Slug = $Slug.Trim().ToLowerInvariant()
 }
 if ([string]::IsNullOrWhiteSpace($Slug) -or $Slug -notmatch '^[a-z0-9]+(?:-[a-z0-9]+)*$') {
-    throw "Ungueltiger Slug '$Slug'. Erlaubt sind a-z, 0-9 und einzelne Bindestriche, zum Beispiel 'spz-squash'."
+    throw "Invalid slug '$Slug'. Allowed characters are a-z, 0-9, and single hyphens, for example 'spz-squash'."
 }
 
 $SourceDirectory = Join-Path $ProjectRoot "source"
@@ -328,10 +327,10 @@ $FinalFiles = @($FinalLaz, $FinalCopc, $FinalConvertReport, $FinalCopcReport, $F
 $ExistingFiles = @($FinalFiles | Where-Object { Test-Path -LiteralPath $_ })
 if ($ExistingFiles.Count -gt 0 -and -not $Force) {
     $formatted = ($ExistingFiles | ForEach-Object { "  - $_" }) -join "`n"
-    throw "Fuer den Slug '$Slug' existieren bereits Ergebnisse. Mit -Force gezielt ersetzen:`n$formatted"
+    throw "Results already exist for slug '$Slug'. Use -Force to replace them explicitly:`n$formatted"
 }
 
-Write-Step "Python 3.12 und globale Benutzerpakete pruefen"
+Write-Step "Check Python 3.12 and global user packages"
 $Python = Resolve-PythonLauncher
 $PythonExecutable = $Python.Executable
 $PythonPrefixArguments = @($Python.PrefixArguments)
@@ -343,7 +342,7 @@ $versionProbeExit = Invoke-ProbeCommand `
     -Executable $PythonExecutable `
     -Arguments $versionProbeArguments
 if ($versionProbeExit -ne 0) {
-    throw "Python 3.12 (64 Bit) mit aktiviertem Benutzer-Paketverzeichnis wird benoetigt. Geprueft wurde: $PythonExecutable $($PythonPrefixArguments -join ' ')"
+    throw "Python 3.12 (64-bit) with the user site-packages directory enabled is required. Checked: $PythonExecutable $($PythonPrefixArguments -join ' ')"
 }
 
 $dependencyProbe = @'
@@ -366,7 +365,7 @@ $dependencyProbeExit = Invoke-ProbeCommand `
     -Executable $PythonExecutable `
     -Arguments $dependencyProbeArguments
 if ($dependencyProbeExit -ne 0) {
-    Write-Step "Fehlende Pakete einmalig fuer das Windows-Benutzerkonto installieren"
+    Write-Step "Install missing packages once for the Windows user account"
     $pipArguments = $PythonPrefixArguments + @(
             "-m",
             "pip",
@@ -379,13 +378,13 @@ if ($dependencyProbeExit -ne 0) {
         )
     Invoke-CheckedCommand -Executable $PythonExecutable `
         -Arguments $pipArguments `
-        -Description "Installation der Python-Abhaengigkeiten"
+        -Description "Installation of Python dependencies"
 
     $dependencyProbeExit = Invoke-ProbeCommand `
         -Executable $PythonExecutable `
         -Arguments $dependencyProbeArguments
     if ($dependencyProbeExit -ne 0) {
-        throw "Die festgeschriebenen Python-Paketversionen sind nach der Installation nicht aktiv."
+        throw "The pinned Python package versions are not active after installation."
     }
 }
 
@@ -413,7 +412,7 @@ try {
     }
 
     if ($IsMultipart) {
-        Write-Step "$($ResolvedInputs.Count) Teile von '$Name' unveraendert in eine farberhaltende LAZ schreiben"
+        Write-Step "Write $($ResolvedInputs.Count) parts of '$Name' unchanged to a color-preserving LAZ"
         $convertArguments = @(
             $PrepareScript,
             "convert-set",
@@ -425,7 +424,7 @@ try {
         )
     }
     else {
-        Write-Step "'$Name' nach farberhaltendem LAZ konvertieren"
+        Write-Step "Convert '$Name' to a color-preserving LAZ"
         $convertArguments = @(
             $PrepareScript,
             "convert",
@@ -440,9 +439,9 @@ try {
     }
     Invoke-CheckedCommand -Executable $PythonExecutable `
         -Arguments ($PythonPrefixArguments + $convertArguments) `
-        -Description "E57/PLY-nach-LAZ-Konvertierung"
+        -Description "E57/PLY-to-LAZ conversion"
 
-    Write-Step "LAZ nach COPC konvertieren"
+    Write-Step "Convert LAZ to COPC"
     Invoke-CheckedCommand -Executable $Converter `
         -Arguments @(
             $StageLaz,
@@ -452,13 +451,13 @@ try {
             "--progress",
             "plain"
         ) `
-        -Description "LAZ-nach-COPC-Konvertierung"
+        -Description "LAZ-to-COPC conversion"
 
     if (-not (Test-Path -LiteralPath $StageCopc -PathType Leaf)) {
-        throw "Der COPC-Converter hat keine Ausgabedatei erzeugt: $StageCopc"
+        throw "The COPC converter did not create an output file: $StageCopc"
     }
 
-    Write-Step "Punktzahl, Koordinaten, RGB und COPC-LOD pruefen"
+    Write-Step "Check point count, coordinates, RGB, and COPC LOD"
     Invoke-CheckedCommand -Executable $PythonExecutable `
         -Arguments ($PythonPrefixArguments + @(
             $PrepareScript,
@@ -468,7 +467,7 @@ try {
             "--report",
             $StageCopcReport
         )) `
-        -Description "COPC-Validierung"
+        -Description "COPC validation"
 
     if ($Force) {
         foreach ($path in $FinalFiles) {
@@ -535,14 +534,14 @@ finally {
 }
 
 if ($Succeeded) {
-    Write-Host "`nFertig und validiert:" -ForegroundColor Green
+    Write-Host "`nComplete and validated:" -ForegroundColor Green
     Write-Host "  Scan:   $Name ($Slug)"
     Write-Host "  LAZ:    $FinalLaz"
     Write-Host "  COPC:   $FinalCopc"
-    Write-Host "  Bericht: $FinalCopcReport"
+    Write-Host "  Report: $FinalCopcReport"
     if ($IsMultipart) {
-        Write-Host "  Registrierung: im Viewer noch auf Doppelkonturen/Naehte pruefen" -ForegroundColor Yellow
+        Write-Host "  Registration: check for double contours/seams in the viewer" -ForegroundColor Yellow
     }
-    Write-Host "`nViewer lokal starten:"
+    Write-Host "`nStart the viewer locally:"
     Write-Host "  & '$PythonExecutable' $($PythonPrefixArguments -join ' ') '$ProjectRoot\scripts\serve_viewer.py'"
 }

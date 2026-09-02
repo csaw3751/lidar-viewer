@@ -30,9 +30,11 @@ jobs:
       - name: Check JavaScript
         run: |
           node --check viewer/zenodo-access.js
+          node --check viewer/i18n.js
+          node --check viewer/config.js
           node --check viewer/app.js
-          node --test tests/test_zenodo_access.mjs
-          python -m unittest -v tests.test_static_and_server
+          node --test tests/*.mjs
+          python -m unittest discover -s tests -p 'test_*.py' -v
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v4

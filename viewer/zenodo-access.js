@@ -125,7 +125,7 @@
 
   function buildFileUrl(recordId, mode, filename, token) {
     if (!isRecordId(recordId) || !isShareToken(token)) {
-      throw new AccessError("invalid_access", "Der Freigabelink ist ungültig.");
+      throw new AccessError("invalid_access", "The access link is invalid.");
     }
 
     if (typeof filename !== "string"
@@ -135,7 +135,7 @@
         || filename.includes("\\")
         || filename.includes("..")
         || /[\u0000-\u001f\u007f]/.test(filename)) {
-      throw new AccessError("invalid_manifest", "Das Manifest enthält einen ungültigen Dateinamen.");
+      throw new AccessError("invalid_manifest", "The manifest contains an invalid filename.");
     }
 
     const scope = mode === "draft" ? "draft/files" : "files";
@@ -180,7 +180,7 @@
       if (response.body) response.body.cancel().catch(() => {});
       await wait(retryDelay(response, attempt));
     }
-    throw new AccessError("network", "Zenodo konnte nicht erreicht werden.");
+    throw new AccessError("network", "Zenodo could not be reached.");
   }
 
   function discardResponse(response) {
@@ -196,13 +196,13 @@
     }
     if (response.type === "opaqueredirect" || responseOrigin !== ZENODO_ORIGIN) {
       discardResponse(response);
-      throw new AccessError("unsafe_redirect", "Zenodo leitete die Anfrage unerwartet weiter.");
+      throw new AccessError("unsafe_redirect", "Zenodo redirected the request unexpectedly.");
     }
   }
 
   function normaliseManifest(payload) {
     if (!payload || payload.schemaVersion !== 1 || !Array.isArray(payload.scans) || !payload.scans.length) {
-      throw new AccessError("invalid_manifest", "Das Viewer-Manifest ist ungültig oder leer.");
+      throw new AccessError("invalid_manifest", "The viewer manifest is invalid or empty.");
     }
 
     const ids = new Set();
@@ -213,10 +213,10 @@
       const format = entry && entry.format;
 
       if (!isScanId(id) || ids.has(id)) {
-        throw new AccessError("invalid_manifest", "Das Manifest enthält eine ungültige oder doppelte Scan-ID.");
+        throw new AccessError("invalid_manifest", "The manifest contains an invalid or duplicate scan ID.");
       }
       if (typeof label !== "string" || !label.trim() || label.length > 160) {
-        throw new AccessError("invalid_manifest", "Das Manifest enthält eine ungültige Scan-Bezeichnung.");
+        throw new AccessError("invalid_manifest", "The manifest contains an invalid scan label.");
       }
       if (typeof filename !== "string"
           || !filename.toLowerCase().endsWith(".copc.laz")
@@ -224,13 +224,13 @@
           || filename.includes("\\")
           || filename.includes("..")
           || /[\u0000-\u001f\u007f]/.test(filename)) {
-        throw new AccessError("invalid_manifest", "Das Manifest verweist nicht auf eine gültige COPC-Datei.");
+        throw new AccessError("invalid_manifest", "The manifest does not reference a valid COPC file.");
       }
       if (entry.type && entry.type !== "pointcloud") {
-        throw new AccessError("invalid_manifest", "Dieser Viewer unterstützt im Manifest nur Punktwolken.");
+        throw new AccessError("invalid_manifest", "This viewer supports point clouds only.");
       }
       if (format && format.toLowerCase() !== "copc") {
-        throw new AccessError("invalid_manifest", "Die Punktwolke muss als COPC angegeben sein.");
+        throw new AccessError("invalid_manifest", "The point cloud must use COPC format.");
       }
 
       ids.add(id);
@@ -249,7 +249,7 @@
 
     return Object.freeze({
       schemaVersion: 1,
-      title: typeof payload.title === "string" ? payload.title.trim() : "LiDAR-Scans",
+      title: typeof payload.title === "string" ? payload.title.trim() : "LiDAR scans",
       scans: Object.freeze(scans),
     });
   }
@@ -258,7 +258,7 @@
     if (!activeAccess) {
       throw new AccessError(
         "missing_access",
-        "Bitte öffnen Sie den vollständigen, persönlich erhaltenen Viewer-Link.",
+        "Open the complete viewer link you received personally.",
       );
     }
 
@@ -284,7 +284,7 @@
         try {
           parsed = await response.json();
         } catch (_) {
-          throw new AccessError("invalid_manifest", "Das Viewer-Manifest ist kein gültiges JSON-Dokument.");
+          throw new AccessError("invalid_manifest", "The viewer manifest is not valid JSON.");
         }
 
         const manifest = normaliseManifest(parsed);
@@ -307,7 +307,7 @@
       if (![401, 403, 404].includes(response.status)) {
         throw new AccessError(
           "zenodo_error",
-          `Zenodo antwortet unerwartet (HTTP ${response.status}).`,
+          `Zenodo returned an unexpected response (HTTP ${response.status}).`,
           response.status,
         );
       }
@@ -316,7 +316,7 @@
     clearAccess();
     throw new AccessError(
       "access_denied",
-      "Der Freigabelink ist ungültig, abgelaufen oder wurde widerrufen.",
+      "The access link is invalid, expired, or has been revoked.",
       lastStatus,
     );
   }
@@ -351,7 +351,7 @@
         || !Number.isSafeInteger(end)
         || begin < 0
         || end <= begin) {
-      throw new AccessError("invalid_range", "Ungültiger COPC-Bytebereich.");
+      throw new AccessError("invalid_range", "Invalid COPC byte range.");
     }
 
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt += 1) {
@@ -375,7 +375,7 @@
         discardResponse(response);
         throw new AccessError(
           "rate_limit",
-          "Zenodo begrenzt derzeit die Anzahl der Datenanfragen.",
+          "Zenodo is currently limiting the number of data requests.",
           response.status,
         );
       }
@@ -385,7 +385,7 @@
         clearAccess();
         throw new AccessError(
           "access_denied",
-          "Der Freigabelink ist ungültig, abgelaufen oder wurde widerrufen.",
+          "The access link is invalid, expired, or has been revoked.",
           response.status,
         );
       }
@@ -394,7 +394,7 @@
         discardResponse(response);
         throw new AccessError(
           "range_failed",
-          `COPC-Bereich konnte nicht geladen werden (HTTP ${response.status}).`,
+          `The COPC range could not be loaded (HTTP ${response.status}).`,
           response.status,
         );
       }
@@ -408,7 +408,7 @@
         discardResponse(response);
         throw new AccessError(
           "range_length",
-          "Zenodo meldete eine unerwartete COPC-Byteanzahl.",
+          "Zenodo reported an unexpected COPC byte count.",
         );
       }
 
@@ -425,7 +425,7 @@
           discardResponse(response);
           throw new AccessError(
             "range_header",
-            "Zenodo lieferte einen unerwarteten COPC-Bytebereich.",
+            "Zenodo returned an unexpected COPC byte range.",
           );
         }
 
@@ -435,7 +435,7 @@
           discardResponse(response);
           throw new AccessError(
             "range_header",
-            "Zenodo meldete eine widersprüchliche COPC-Dateigröße.",
+            "Zenodo reported an inconsistent COPC file size.",
           );
         }
         knownFileSizes.set(url, totalSize);
@@ -445,13 +445,13 @@
       if (buffer.byteLength !== expectedLength) {
         throw new AccessError(
           "range_length",
-          "Zenodo lieferte einen unvollständigen COPC-Bytebereich.",
+          "Zenodo returned an incomplete COPC byte range.",
         );
       }
       return new Uint8Array(buffer);
     }
 
-    throw new AccessError("rate_limit", "Zenodo begrenzt derzeit die Anzahl der Datenanfragen.");
+    throw new AccessError("rate_limit", "Zenodo is currently limiting the number of data requests.");
   }
 
   function fetchRange(url, begin, end) {
@@ -476,7 +476,7 @@
 
   function installCopcGetter() {
     if (!window.Copc || !window.Copc.Getter || typeof window.Copc.Getter.http !== "function") {
-      throw new AccessError("missing_copc", "Die lokale COPC-Bibliothek fehlt.");
+      throw new AccessError("missing_copc", "The local COPC library is missing.");
     }
     if (window.Copc.Getter.__zenodoProtectedViewer) return;
 
@@ -500,10 +500,10 @@
 
   function loadPointCloud() {
     if (!activeAccess || !activeDataset) {
-      throw new AccessError("missing_access", "Der geschützte Datensatz wurde noch nicht aufgelöst.");
+      throw new AccessError("missing_access", "The protected dataset has not been resolved yet.");
     }
     if (!window.Potree || typeof window.Potree.loadPointCloud !== "function") {
-      throw new AccessError("missing_potree", "Die lokale Potree-Bibliothek fehlt.");
+      throw new AccessError("missing_potree", "The local Potree library is missing.");
     }
 
     installCopcGetter();

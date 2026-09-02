@@ -2,9 +2,13 @@
   "use strict";
 
   const QUALITY_STORAGE_KEY = "lidar-viewer.render-quality.v1";
+  const I18N = window.LidarViewerI18n;
+  const CORE_ENGLISH_FALLBACK = Object.freeze({
+    "error.startTitle": "Viewer could not start",
+    "error.startMessage": "A local viewer dependency is missing or could not be loaded.",
+  });
   const DEFAULT_QUALITY_PROFILES = Object.freeze({
     auto: Object.freeze({
-      label: "Auto",
       desktopPointBudget: 3_500_000,
       compactPointBudget: 1_200_000,
       minNodeSize: 20,
@@ -12,7 +16,6 @@
       shape: "CIRCLE",
     }),
     high: Object.freeze({
-      label: "Hoch",
       desktopPointBudget: 5_500_000,
       compactPointBudget: 2_000_000,
       minNodeSize: 10,
@@ -20,7 +23,6 @@
       shape: "CIRCLE",
     }),
     maximum: Object.freeze({
-      label: "Maximum",
       desktopPointBudget: 9_000_000,
       compactPointBudget: 3_500_000,
       minNodeSize: 5,
@@ -38,8 +40,8 @@
     const shape = ["SQUARE", "CIRCLE", "PARABOLOID"].includes(configured.shape)
       ? configured.shape : defaults.shape;
     return Object.freeze({
-      label: typeof configured.label === "string" && configured.label.trim()
-        ? configured.label.trim() : defaults.label,
+      customLabel: typeof configured.label === "string" && configured.label.trim()
+        ? configured.label.trim() : null,
       desktopPointBudget: finiteOr(configured.desktopPointBudget, defaults.desktopPointBudget),
       compactPointBudget: finiteOr(configured.compactPointBudget, defaults.compactPointBudget),
       minNodeSize: finiteOr(configured.minNodeSize, defaults.minNodeSize),
@@ -53,11 +55,24 @@
     maximum: normaliseQualityProfile("maximum"),
   });
   const CONFIG = Object.freeze({
-    name: runtimeConfig.name || "Geschützter LiDAR-Viewer",
+    name: typeof runtimeConfig.name === "string" && runtimeConfig.name.trim()
+      ? runtimeConfig.name.trim() : null,
     manifestFile: runtimeConfig.manifestFile || "viewer-manifest.json",
     loadTimeoutMs: Number.isFinite(runtimeConfig.loadTimeoutMs) ? runtimeConfig.loadTimeoutMs : 180_000,
     defaultQuality: Object.hasOwn(QUALITY_PROFILES, runtimeConfig.defaultQuality)
       ? runtimeConfig.defaultQuality : "auto",
+  });
+  const ATTRIBUTE_LABEL_KEYS = Object.freeze({
+    position: "attribute.position",
+    intensity: "attribute.intensity",
+    classification: "attribute.classification",
+    returnnumber: "attribute.returnNumber",
+    numberofreturns: "attribute.numberOfReturns",
+    sourceid: "attribute.sourceId",
+    pointsourceid: "attribute.pointSourceId",
+    gpstime: "attribute.gpsTime",
+    rgb: "info.rgbColour",
+    rgba: "info.rgbaColour",
   });
 
   const state = {
@@ -69,21 +84,48 @@
     dataset: null,
     ready: false,
     activeTool: null,
+    activeInsertionCleanup: null,
     compactDevice: false,
     qualityMode: CONFIG.defaultQuality,
     qualityProfile: QUALITY_PROFILES[CONFIG.defaultQuality],
+    status: Object.freeze({ key: "status.loading", values: {}, tone: "" }),
+    loading: Object.freeze({
+      titleKey: "loading.title",
+      messageKey: "loading.initial",
+      retry: false,
+    }),
+    guiReady: false,
+    localisedObjects: new Map(),
   };
 
   const byId = (id) => document.getElementById(id);
   const toolButtons = () => Array.from(document.querySelectorAll("[data-tool]"));
   const actionButtons = () => Array.from(document.querySelectorAll("[data-action]"));
 
+  function t(key, values = {}) {
+    if (I18N) return I18N.t(key, values);
+    const template = CORE_ENGLISH_FALLBACK[key] || key;
+    return template.replace(/\{\{([A-Za-z0-9_]+)\}\}/g, (match, name) => (
+      Object.hasOwn(values, name) ? String(values[name]) : match
+    ));
+  }
+
+  function englishText(key) {
+    return I18N && I18N.catalogs.en[key] ? I18N.catalogs.en[key] : (CORE_ENGLISH_FALLBACK[key] || key);
+  }
+
+  function qualityLabel(mode = state.qualityMode, profile = state.qualityProfile) {
+    return profile.customLabel || t(`quality.${mode}`);
+  }
+
   function formatInteger(value) {
-    return new Intl.NumberFormat("de-AT", { maximumFractionDigits: 0 }).format(value);
+    return new Intl.NumberFormat(I18N ? I18N.locale : "en-GB", {
+      maximumFractionDigits: 0,
+    }).format(value);
   }
 
   function formatMeters(value) {
-    return new Intl.NumberFormat("de-AT", {
+    return new Intl.NumberFormat(I18N ? I18N.locale : "en-GB", {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     }).format(value) + " m";
@@ -102,7 +144,7 @@
     try {
       window.localStorage.setItem(QUALITY_STORAGE_KEY, mode);
     } catch (_error) {
-      // Der Viewer funktioniert auch, wenn dauerhafte Browser-Speicherung gesperrt ist.
+      // The viewer still works when persistent browser storage is blocked.
     }
   }
 
@@ -113,7 +155,10 @@
   function updateQualityInfo(profile, pointBudget) {
     const info = byId("info-quality");
     if (!info) return;
-    info.textContent = `${profile.label} · bis zu ${formatInteger(pointBudget)} Punkte gleichzeitig`;
+    info.textContent = t("quality.info", {
+      quality: qualityLabel(state.qualityMode, profile),
+      points: formatInteger(pointBudget),
+    });
   }
 
   function applyQuality(mode, { persist = false, announce = false } = {}) {
@@ -143,10 +188,10 @@
     updateQualityInfo(profile, pointBudget);
     if (persist) saveQualityPreference(selectedMode);
     if (announce && state.ready) {
-      setStatus(
-        `Darstellung ${profile.label} · bis zu ${formatInteger(pointBudget)} Punkte gleichzeitig`,
-        "ready",
-      );
+      setStatus("quality.status", {
+        qualityMode: selectedMode,
+        pointBudget,
+      }, "ready");
     }
 
     return profile;
@@ -154,7 +199,7 @@
 
   async function resolveDataSource() {
     if (!window.ZenodoViewerAccess) {
-      throw new Error("Die lokale Zenodo-Zugriffskomponente fehlt.");
+      throw new Error("The local Zenodo access component is missing.");
     }
 
     const resolved = await window.ZenodoViewerAccess.resolveDataset(CONFIG.manifestFile);
@@ -169,15 +214,18 @@
   }
 
   function applyDatasetName(name, sourceLabel) {
-    document.title = `${name} · LiDAR-Viewer`;
+    const displayName = name || t("app.name");
+    document.title = t("app.documentTitle", { name: displayName });
     const brandName = document.querySelector(".brand-copy strong");
-    if (brandName) brandName.textContent = name;
+    if (brandName) brandName.textContent = displayName;
     const brandSubtitle = document.querySelector(".brand-copy span");
     if (brandSubtitle) {
-      brandSubtitle.textContent = sourceLabel ? `${sourceLabel} · Punktwolke` : "LiDAR-Punktwolke";
+      brandSubtitle.textContent = sourceLabel
+        ? t("brand.subtitleSource", { source: sourceLabel })
+        : t("brand.subtitle");
     }
     const infoTitle = byId("info-title");
-    if (infoTitle) infoTitle.textContent = name;
+    if (infoTitle) infoTitle.textContent = name || t("info.defaultTitle");
   }
 
   function populateScanSelector(manifest, selectedScan) {
@@ -195,11 +243,40 @@
     picker.classList.toggle("hidden", manifest.scans.length < 2);
   }
 
-  function setStatus(message, tone = "ready") {
+  function renderStatus() {
     const status = byId("viewer-status");
-    byId("viewer-status-text").textContent = message;
+    const values = { ...state.status.values };
+    if (Number.isFinite(values.pointBudget)) {
+      const mode = Object.hasOwn(QUALITY_PROFILES, values.qualityMode)
+        ? values.qualityMode : state.qualityMode;
+      values.quality = qualityLabel(mode, QUALITY_PROFILES[mode]);
+      values.points = formatInteger(values.pointBudget);
+    }
+    if (state.status.key === "status.ready") {
+      values.count = Number.isFinite(values.pointCount)
+        ? t("status.pointCount", { points: formatInteger(values.pointCount) })
+        : "";
+      values.quality = qualityLabel();
+    }
+    byId("viewer-status-text").textContent = t(state.status.key, values);
     status.classList.remove("ready", "action", "error");
-    status.classList.add(tone);
+    if (state.status.tone) status.classList.add(state.status.tone);
+  }
+
+  function setStatus(key, values = {}, tone = "ready") {
+    state.status = Object.freeze({ key, values: Object.freeze({ ...values }), tone });
+    renderStatus();
+  }
+
+  function renderLoading() {
+    byId("loading-title").textContent = t(state.loading.titleKey);
+    byId("loading-message").textContent = t(state.loading.messageKey);
+    byId("loading-retry").classList.toggle("hidden", !state.loading.retry);
+  }
+
+  function setLoading(titleKey, messageKey, retry = false) {
+    state.loading = Object.freeze({ titleKey, messageKey, retry });
+    renderLoading();
   }
 
   function openDialog(dialog) {
@@ -244,6 +321,11 @@
   }
 
   function clearActiveTool() {
+    if (state.activeInsertionCleanup) {
+      const cleanup = state.activeInsertionCleanup;
+      state.activeInsertionCleanup = null;
+      cleanup();
+    }
     state.activeTool = null;
     toolButtons().forEach((button) => {
       button.classList.remove("active");
@@ -261,12 +343,81 @@
     }
   }
 
+  const DEFAULT_OBJECT_KEYS = Object.freeze([
+    "measurement.point",
+    "measurement.distance",
+    "measurement.height",
+    "measurement.area",
+    "measurement.angle",
+    "measurement.circle",
+    "measurement.azimuth",
+    "measurement.volume",
+    "measurement.profile",
+    "measurement.clipBox",
+  ]);
+
+  function keyForObjectName(name) {
+    if (!I18N || typeof name !== "string") return null;
+    return DEFAULT_OBJECT_KEYS.find((key) => (
+      name === I18N.catalogs.en[key] || name === I18N.catalogs.de[key]
+    )) || null;
+  }
+
+  function markLocalisedObject(object, key) {
+    if (!object || !key) return object;
+    state.localisedObjects.set(object, key);
+    object.name = englishText(key);
+    window.setTimeout(refreshLocalisedObjectNames, 0);
+    return object;
+  }
+
+  function refreshLocalisedObjectNames() {
+    if (!window.$ || !window.$.jstree || !byId("jstree_scene")) return;
+    let tree;
+    let nodes;
+    try {
+      tree = window.$("#jstree_scene").jstree(true);
+      nodes = tree && tree.get_json("#", { flat: true });
+    } catch (_error) {
+      return;
+    }
+    if (!tree || !Array.isArray(nodes)) return;
+
+    state.localisedObjects.forEach((key, object) => {
+      if (object.name !== englishText(key)) {
+        state.localisedObjects.delete(object);
+        return;
+      }
+      const node = nodes.find((candidate) => candidate.data === object
+        || (candidate.data && object.uuid && candidate.data.uuid === object.uuid));
+      if (node && node.text !== t(key)) tree.rename_node(node, t(key));
+    });
+  }
+
+  function wireObjectLocalisation(viewer) {
+    const track = (property) => (event) => {
+      const object = event[property];
+      const key = object && keyForObjectName(object.name);
+      if (key) markLocalisedObject(object, key);
+    };
+    viewer.scene.addEventListener("measurement_added", track("measurement"));
+    viewer.scene.addEventListener("profile_added", track("profile"));
+    viewer.scene.addEventListener("volume_added", track("volume"));
+    viewer.scene.addEventListener("polygon_clip_volume_added", track("volume"));
+    const untrack = (property) => (event) => state.localisedObjects.delete(event[property]);
+    viewer.scene.addEventListener("measurement_removed", untrack("measurement"));
+    viewer.scene.addEventListener("profile_removed", untrack("profile"));
+    viewer.scene.addEventListener("volume_removed", untrack("volume"));
+    viewer.scene.addEventListener("polygon_clip_volume_removed", untrack("volume"));
+  }
+
   function startMeasurement(toolName) {
     if (!state.ready) return;
 
     const viewer = state.viewer;
     let object;
     let instruction;
+    let insertionCleanup = null;
 
     switch (toolName) {
       case "point":
@@ -277,9 +428,10 @@
           showArea: false,
           closed: true,
           maxMarkers: 1,
-          name: "Punkt",
+          name: englishText("measurement.point"),
         });
-        instruction = "Punkt: Position in der Punktwolke anklicken.";
+        markLocalisedObject(object, "measurement.point");
+        instruction = "status.pointInstruction";
         break;
 
       case "distance":
@@ -287,9 +439,10 @@
           showDistances: true,
           showArea: false,
           closed: false,
-          name: "Strecke",
+          name: englishText("measurement.distance"),
         });
-        instruction = "Strecke: Punkte anklicken, mit Rechtsklick abschließen.";
+        markLocalisedObject(object, "measurement.distance");
+        instruction = "status.distanceInstruction";
         break;
 
       case "height":
@@ -299,9 +452,10 @@
           showArea: false,
           closed: false,
           maxMarkers: 2,
-          name: "Höhe",
+          name: englishText("measurement.height"),
         });
-        instruction = "Höhe: unteren und oberen Bezugspunkt anklicken.";
+        markLocalisedObject(object, "measurement.height");
+        instruction = "status.heightInstruction";
         break;
 
       case "area":
@@ -309,9 +463,10 @@
           showDistances: true,
           showArea: true,
           closed: true,
-          name: "Fläche",
+          name: englishText("measurement.area"),
         });
-        instruction = "Fläche: Eckpunkte anklicken, mit Rechtsklick abschließen.";
+        markLocalisedObject(object, "measurement.area");
+        instruction = "status.areaInstruction";
         break;
 
       case "angle":
@@ -321,26 +476,34 @@
           showArea: false,
           closed: true,
           maxMarkers: 3,
-          name: "Winkel",
+          name: englishText("measurement.angle"),
         });
-        instruction = "Winkel: drei Punkte anklicken; der zweite Punkt ist der Scheitel.";
+        markLocalisedObject(object, "measurement.angle");
+        instruction = "status.angleInstruction";
         break;
 
       case "profile": {
-        const profile = viewer.profileTool.startInsertion({ name: "Profil" });
+        const profile = viewer.profileTool.startInsertion({ name: englishText("measurement.profile") });
         object = profile;
-        instruction = "Profil: mindestens zwei Punkte setzen und mit Rechtsklick abschließen.";
+        markLocalisedObject(object, "measurement.profile");
+        instruction = "status.profileInstruction";
 
         const openFinishedProfile = (event) => {
           if (event.button !== 2) return;
+          insertionCleanup();
           window.setTimeout(() => {
             if (profile.points.length >= 2 && viewer.profileWindow && viewer.profileWindowController) {
               viewer.profileWindow.show();
               viewer.profileWindowController.setProfile(profile);
-              setStatus("2D-Profil geöffnet · Export als CSV oder LAS im Profilfenster", "ready");
+              setStatus("status.profileOpened", {}, "ready");
             }
           }, 0);
+        };
+        insertionCleanup = () => {
           viewer.renderer.domElement.removeEventListener("mouseup", openFinishedProfile);
+          if (state.activeInsertionCleanup === insertionCleanup) {
+            state.activeInsertionCleanup = null;
+          }
         };
         viewer.renderer.domElement.addEventListener("mouseup", openFinishedProfile);
         break;
@@ -349,8 +512,9 @@
       case "clip":
         viewer.setClipTask(Potree.ClipTask.SHOW_INSIDE);
         viewer.setClipMethod(Potree.ClipMethod.INSIDE_ANY);
-        object = viewer.volumeTool.startInsertion({ clip: true, name: "Schnittbox" });
-        instruction = "Schnittbox platzieren; danach mit den Griffen verschieben, drehen und skalieren.";
+        object = viewer.volumeTool.startInsertion({ clip: true, name: englishText("measurement.clipBox") });
+        markLocalisedObject(object, "measurement.clipBox");
+        instruction = "status.clipInstruction";
         break;
 
       default:
@@ -358,7 +522,8 @@
     }
 
     markActiveTool(toolName);
-    setStatus(instruction, "action");
+    state.activeInsertionCleanup = insertionCleanup;
+    setStatus(instruction, {}, "action");
     return object;
   }
 
@@ -367,7 +532,7 @@
     state.viewer.dispatchEvent({ type: "cancel_insertions" });
     clearActiveTool();
     state.viewer.fitToScreen(0.85, 350);
-    setStatus("Gesamter Scan in die Ansicht eingepasst", "ready");
+    setStatus("status.fit", {}, "ready");
   }
 
   function topView() {
@@ -375,7 +540,7 @@
     state.viewer.dispatchEvent({ type: "cancel_insertions" });
     clearActiveTool();
     state.viewer.setTopView();
-    setStatus("Draufsicht aktiv", "ready");
+    setStatus("status.top", {}, "ready");
   }
 
   function resetSession() {
@@ -388,10 +553,11 @@
     viewer.setClipTask(Potree.ClipTask.HIGHLIGHT);
     viewer.setClipMethod(Potree.ClipMethod.INSIDE_ANY);
     if (viewer.profileWindow) viewer.profileWindow.hide();
+    state.localisedObjects.clear();
     clearActiveTool();
     viewer.fitToScreen(0.85, 350);
     closeDialog(byId("reset-dialog"));
-    setStatus("Auswertungen entfernt · Scan unverändert", "ready");
+    setStatus("status.reset", {}, "ready");
   }
 
   function toggleSidebar() {
@@ -430,69 +596,115 @@
     const rawAttributes = metadata && Array.isArray(metadata.attributes)
       ? metadata.attributes.map((attribute) => attribute.name)
       : (Array.isArray(configured.attributes) ? configured.attributes : []);
-    const attributes = rawAttributes.map((name) => name === "rgb" ? "RGB-Farbe" : name);
+    const attributes = rawAttributes.map((name) => {
+      const normalised = String(name).replace(/[\s_-]/g, "").toLowerCase();
+      const key = ATTRIBUTE_LABEL_KEYS[normalised];
+      return key ? t(key) : name;
+    });
     byId("info-attributes").textContent = attributes.join(", ") || "–";
     byId("info-format").textContent = configured.webFormat || "COPC 1.0 · LAZ";
-    byId("info-source").textContent = configured.source || "LiDAR-Aufnahme";
+    byId("info-source").textContent = configured.source || t("info.defaultSource");
     byId("info-access").textContent = source.mode === "draft"
-      ? "Geschützter Zenodo-Entwurf"
-      : "Geschützte Zenodo-Veröffentlichung";
+      ? t("info.draftAccess")
+      : t("info.publishedAccess");
     const coordinates = byId("info-coordinates");
-    if (coordinates) coordinates.textContent = `Lokal, ${configured.units || "m"} (kein CRS)`;
+    if (coordinates) {
+      coordinates.textContent = t("info.localCoordinates", { units: configured.units || "m" });
+    }
   }
 
-  function showFatal(title, message, retry = true) {
+  function showFatal(titleKey, messageKey, retry = true) {
     const overlay = byId("loading-overlay");
     overlay.classList.remove("dismissed");
     byId("loading-spinner").classList.add("hidden");
-    byId("loading-title").textContent = title;
-    byId("loading-message").textContent = message;
-    byId("loading-retry").classList.toggle("hidden", !retry);
-    setStatus(title, "error");
+    setLoading(titleKey, messageKey, retry);
+    setStatus(titleKey, {}, "error");
   }
 
   function describeFailure(error) {
     const code = error && error.code;
     if (code === "missing_access" || code === "invalid_access") {
       return {
-        title: "Persönlicher Freigabelink erforderlich",
-        message: "Diese Seite enthält selbst keine Scandaten. Öffnen Sie den vollständigen Link, den Sie persönlich erhalten haben.",
+        titleKey: "error.accessRequiredTitle",
+        messageKey: "error.accessRequiredMessage",
         retry: false,
       };
     }
     if (code === "access_denied") {
       return {
-        title: "Freigabelink nicht mehr gültig",
-        message: "Der Link ist abgelaufen, wurde widerrufen oder passt nicht zu diesem Zenodo-Datensatz.",
+        titleKey: "error.accessDeniedTitle",
+        messageKey: "error.accessDeniedMessage",
         retry: false,
       };
     }
     if (["range_failed", "range_header", "range_length"].includes(code)) {
       return {
-        title: "Zenodo-Streaming nicht verfügbar",
-        message: "Der Server lieferte nicht den benötigten Bytebereich. Es wurde vorsorglich keine vollständige Scandatei geladen.",
+        titleKey: "error.rangeTitle",
+        messageKey: "error.rangeMessage",
         retry: true,
       };
     }
     if (code === "rate_limit") {
       return {
-        title: "Zenodo ist vorübergehend ausgelastet",
-        message: "Bitte warten Sie kurz und versuchen Sie es anschließend erneut.",
+        titleKey: "error.rateLimitTitle",
+        messageKey: "error.rateLimitMessage",
         retry: true,
       };
     }
     if (code === "invalid_manifest") {
       return {
-        title: "Viewer-Manifest ist ungültig",
-        message: "Die geschützte Dateiliste entspricht nicht dem erwarteten Format.",
+        titleKey: "error.manifestTitle",
+        messageKey: "error.manifestMessage",
         retry: false,
       };
     }
     return {
-      title: "Punktwolke konnte nicht geladen werden",
-      message: "Prüfen Sie die Internetverbindung und öffnen Sie den persönlichen Freigabelink erneut.",
+      titleKey: "error.loadTitle",
+      messageKey: "error.loadMessage",
       retry: true,
     };
+  }
+
+  function syncLanguageButtons() {
+    document.querySelectorAll("[data-language]").forEach((button) => {
+      const active = I18N && button.dataset.language === I18N.language;
+      button.classList.toggle("active", active);
+      button.setAttribute("aria-pressed", String(active));
+    });
+  }
+
+  function translatePotreeInterface() {
+    if (!I18N) return;
+    [byId("potree_sidebar_container"), byId("profile_window"), byId("message_listing")]
+      .filter(Boolean)
+      .forEach(I18N.observePotree);
+    refreshLocalisedObjectNames();
+  }
+
+  function renderLanguage(translateStaticDocument = true) {
+    if (!I18N) return;
+    if (translateStaticDocument) I18N.translateDocument(document);
+    syncLanguageButtons();
+
+    const configured = state.dataset || {};
+    applyDatasetName(configured.label || CONFIG.name, configured.source || "");
+    updateQualityInfo(state.qualityProfile, activePointBudget(state.qualityProfile));
+    renderStatus();
+    renderLoading();
+
+    if (state.source && state.dataset) {
+      populateDatasetInfo(
+        state.metadata,
+        { mode: state.source.mode, scan: state.dataset },
+        state.pointcloud,
+      );
+    }
+
+    if (state.viewer) state.viewer.setDescription(t("viewer.description"));
+    if (state.viewer && state.guiReady) {
+      state.viewer.setLanguage(I18N ? I18N.language : "en");
+      window.setTimeout(translatePotreeInterface, 0);
+    }
   }
 
   function wireInterface() {
@@ -501,13 +713,13 @@
       state.ready = false;
       disableControls();
       const detail = event.detail || {};
-      console.error("Punktwolken-Streamingfehler", {
+      console.error("Point-cloud streaming error", {
         name: detail.name || "Error",
         code: detail.code || "pointcloud_load",
         status: detail.status || null,
       });
       const failure = describeFailure(detail);
-      showFatal(failure.title, failure.message, failure.retry);
+      showFatal(failure.titleKey, failure.messageKey, failure.retry);
     });
 
     toolButtons().forEach((button) => {
@@ -528,12 +740,16 @@
     byId("quality-selector").addEventListener("change", (event) => {
       applyQuality(event.target.value, { persist: true, announce: true });
     });
+    document.querySelectorAll("[data-language]").forEach((button) => {
+      button.addEventListener("click", () => {
+        if (I18N) I18N.setLanguage(button.dataset.language);
+      });
+    });
     byId("scan-selector").addEventListener("change", (event) => {
       if (!window.ZenodoViewerAccess.selectScan(event.target.value)) return;
       byId("loading-overlay").classList.remove("dismissed");
       byId("loading-spinner").classList.remove("hidden");
-      byId("loading-title").textContent = "Scan wird gewechselt";
-      byId("loading-message").textContent = "Die geschützte Punktwolke wird neu geladen …";
+      setLoading("loading.switchTitle", "loading.switchMessage");
       window.location.reload();
     });
     byId("clear-access").addEventListener("click", () => {
@@ -559,12 +775,16 @@
       }
       if (state.viewer) state.viewer.dispatchEvent({ type: "cancel_insertions" });
       clearActiveTool();
-      if (state.ready) setStatus("Werkzeug abgebrochen", "ready");
+      if (state.ready) setStatus("status.cancelled", {}, "ready");
     });
   }
 
   async function initialise() {
-    applyDatasetName(CONFIG.name);
+    if (I18N) {
+      I18N.onChange(() => renderLanguage(false));
+      I18N.observePotree(byId("potree_sidebar_container"));
+    }
+    renderLanguage();
     wireInterface();
     state.compactDevice = window.matchMedia("(max-width: 760px)").matches;
     state.qualityMode = readQualityPreference();
@@ -572,19 +792,19 @@
 
     if (window.location.protocol === "file:") {
       showFatal(
-        "Lokaler Webserver erforderlich",
-        "Bitte diese Seite über einen lokalen Webserver oder GitHub Pages öffnen. Beispiel im Projektstamm: py scripts\\serve_viewer.py",
+        "error.localServerTitle",
+        "error.localServerMessage",
       );
       return;
     }
 
-    if (!window.Potree || !window.$ || !window.ZenodoViewerAccess) {
-      showFatal("Viewer konnte nicht starten", "Eine lokale Potree-Abhängigkeit fehlt oder konnte nicht geladen werden.");
+    if (!window.Potree || !window.$ || !window.ZenodoViewerAccess || !I18N) {
+      showFatal("error.startTitle", "error.startMessage");
       return;
     }
 
     try {
-      byId("loading-message").textContent = "Geschützte Dateiliste wird von Zenodo geladen …";
+      setLoading("loading.title", "loading.manifest");
       const source = await resolveDataSource();
 
       state.catalog = source.manifest;
@@ -599,10 +819,11 @@
       });
       applyDatasetName(source.name, source.scan.source);
       populateScanSelector(source.manifest, source.scan);
-      byId("loading-message").textContent = "Metadaten und erste Punkte werden bereichsweise geladen …";
+      setLoading("loading.title", "loading.points");
 
       const viewer = new Potree.Viewer(byId("potree_render_area"));
       state.viewer = viewer;
+      wireObjectLocalisation(viewer);
 
       viewer.setEDLEnabled(true);
       viewer.setEDLRadius(1.25);
@@ -611,11 +832,13 @@
       applyQuality(state.qualityMode);
       viewer.setBackground("gradient");
       viewer.setLengthUnit("m");
-      viewer.setDescription("LiDAR-Punktwolke · lokale Koordinaten");
+      viewer.setDescription(t("viewer.description"));
 
       const guiReady = new Promise((resolve) => {
         viewer.loadGUI(() => {
-          viewer.setLanguage("de");
+          state.guiReady = true;
+          viewer.setLanguage(I18N.language);
+          translatePotreeInterface();
           resolve();
         });
       });
@@ -626,7 +849,7 @@
       const [metadata, , loaded] = await withTimeout(
         Promise.all([metadataReady, guiReady, pointCloudReady]),
         CONFIG.loadTimeoutMs,
-        "Zeitüberschreitung beim Laden der Punktwolke",
+        t("error.timeout"),
       );
 
       state.metadata = metadata;
@@ -651,8 +874,10 @@
         get metadata() { return state.metadata || state.dataset; },
         get source() { return state.source; },
         get qualityMode() { return state.qualityMode; },
+        get language() { return I18N.language; },
         startTool: startMeasurement,
         setQuality: (mode) => applyQuality(mode, { persist: true, announce: true }),
+        setLanguage: (language) => I18N.setLanguage(language),
         fitView,
         topView,
         resetSession,
@@ -664,20 +889,18 @@
         ? source.scan.points
         : (geometry && geometry.copc && geometry.copc.header
           ? geometry.copc.header.pointCount : null);
-      const countLabel = Number.isFinite(pointCount) ? `${formatInteger(pointCount)} Punkte · ` : "";
-      setStatus(
-        `Bereit · ${countLabel}COPC · Qualität ${state.qualityProfile.label} · geschützter Zenodo-Zugriff`,
-        "ready",
-      );
+      setStatus("status.ready", {
+        pointCount,
+      }, "ready");
       byId("loading-overlay").classList.add("dismissed");
     } catch (error) {
-      console.error("Viewer-Fehler", {
+      console.error("Viewer error", {
         name: error && error.name ? error.name : "Error",
         code: error && error.code ? error.code : "unknown",
         status: error && error.status ? error.status : null,
       });
       const failure = describeFailure(error);
-      showFatal(failure.title, failure.message, failure.retry);
+      showFatal(failure.titleKey, failure.messageKey, failure.retry);
     }
   }
 

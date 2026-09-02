@@ -1,18 +1,20 @@
 <!doctype html>
-<html lang="de">
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="description" content="Geschützter interaktiver Viewer für LiDAR-Punktwolken">
+  <meta name="description" content="Protected interactive viewer for LiDAR point clouds"
+        data-lidar-i18n-content="meta.description">
   <meta name="theme-color" content="#101820">
   <meta name="robots" content="noindex, nofollow, noarchive, nosnippet">
   <meta name="referrer" content="no-referrer">
   <meta http-equiv="Content-Security-Policy"
         content="default-src 'self'; script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https://zenodo.org; worker-src 'self' blob:; child-src 'self' blob:; object-src 'none'; base-uri 'none'; form-action 'none'">
-  <title>Geschützter LiDAR-Viewer</title>
+  <title>Protected LiDAR Viewer</title>
 
-  <!-- Liest den Geheimlink vor allen Drittbibliotheken und entfernt das Fragment sofort. -->
+  <!-- Capture and remove the access fragment before loading any other script. -->
   <script src="zenodo-access.js"></script>
+  <script src="i18n.js"></script>
 
   <link rel="stylesheet" href="vendor/potree/potree.css">
   <link rel="stylesheet" href="vendor/libs/jquery-ui/jquery-ui.min.css">
@@ -23,195 +25,223 @@
 </head>
 <body>
   <noscript>
-    <div class="fatal-noscript">Dieser Viewer benötigt JavaScript.</div>
+    <div class="fatal-noscript">This viewer requires JavaScript. / Dieser Viewer benötigt JavaScript.</div>
   </noscript>
 
-  <div class="potree_container" aria-label="3D-Punktwolkenansicht">
+  <div class="potree_container" aria-label="3D point cloud view"
+       data-lidar-i18n-aria-label="aria.pointCloudView">
     <div id="potree_render_area"></div>
-    <div id="potree_sidebar_container" aria-label="Erweiterte Potree-Einstellungen"></div>
+    <div id="potree_sidebar_container" aria-label="Advanced Potree settings"
+         data-lidar-i18n-aria-label="aria.potreeSettings"></div>
   </div>
 
-  <header class="app-header" aria-label="Viewer-Kopfzeile">
+  <header class="app-header" aria-label="Viewer header"
+          data-lidar-i18n-aria-label="aria.header">
     <div class="brand-mark" aria-hidden="true">3D</div>
     <div class="brand-copy">
-      <strong>Geschützter LiDAR-Viewer</strong>
-      <span>LiDAR-Punktwolke</span>
+      <strong>Protected LiDAR Viewer</strong>
+      <span>LiDAR point cloud</span>
     </div>
     <label class="scan-picker hidden" id="scan-picker" for="scan-selector">
-      <span>Scan</span>
-      <select id="scan-selector" disabled aria-label="Scan auswählen"></select>
+      <span data-lidar-i18n="scan.label">Scan</span>
+      <select id="scan-selector" disabled aria-label="Select scan"
+              data-lidar-i18n-aria-label="scan.select"></select>
     </label>
     <label class="quality-picker" for="quality-selector">
-      <span>Qualität</span>
-      <select id="quality-selector" disabled aria-label="Darstellungsqualität auswählen"
-              title="Mehr sichtbare Punkte erhöhen Detailgrad, Datenverkehr und GPU-Last">
-        <option value="auto">Auto</option>
-        <option value="high">Hoch</option>
-        <option value="maximum">Maximum</option>
+      <span data-lidar-i18n="quality.label">Quality</span>
+      <select id="quality-selector" disabled aria-label="Select rendering quality"
+              title="More visible points increase detail, data traffic, and GPU load"
+              data-lidar-i18n-aria-label="quality.select"
+              data-lidar-i18n-title="quality.hint">
+        <option value="auto" data-lidar-i18n="quality.auto">Auto</option>
+        <option value="high" data-lidar-i18n="quality.high">High</option>
+        <option value="maximum" data-lidar-i18n="quality.maximum">Maximum</option>
       </select>
     </label>
     <div class="header-actions">
       <button class="utility-button" id="toggle-sidebar" type="button" disabled
-              title="Erweiterte Potree-Einstellungen ein- oder ausblenden">
-        <span aria-hidden="true">☰</span><span class="wide-label"> Details</span>
+              title="Show or hide advanced Potree settings"
+              data-lidar-i18n-title="header.detailsTitle">
+        <span aria-hidden="true">☰</span><span class="wide-label" data-lidar-i18n="header.details">Details</span>
       </button>
       <button class="utility-button round" id="open-info" type="button"
-              aria-label="Datensatzinformation" title="Datensatzinformation">i</button>
+              aria-label="Dataset information" title="Dataset information"
+              data-lidar-i18n-aria-label="header.datasetInfo"
+              data-lidar-i18n-title="header.datasetInfo">i</button>
       <button class="utility-button round" id="open-help" type="button"
-              aria-label="Bedienungshilfe" title="Bedienungshilfe">?</button>
+              aria-label="Viewer help" title="Viewer help"
+              data-lidar-i18n-aria-label="header.help"
+              data-lidar-i18n-title="header.help">?</button>
     </div>
   </header>
 
-  <nav class="toolstrip" aria-label="Analysewerkzeuge">
-    <div class="tool-group" aria-label="Messen">
-      <span class="group-label">Messen</span>
+  <div class="language-switcher" role="group" aria-label="Language"
+       data-lidar-i18n-aria-label="language.label">
+    <button type="button" data-language="de" title="Switch to German"
+            data-lidar-i18n-title="language.switchToGerman">DE</button>
+    <button type="button" data-language="en" title="Switch to English"
+            data-lidar-i18n-title="language.switchToEnglish">EN</button>
+  </div>
+
+  <nav class="toolstrip" aria-label="Analysis tools"
+       data-lidar-i18n-aria-label="aria.analysisTools">
+    <div class="tool-group" aria-label="Measure" data-lidar-i18n-aria-label="tools.measure">
+      <span class="group-label" data-lidar-i18n="tools.measure">Measure</span>
       <button class="tool-button" type="button" data-tool="point" disabled
-              title="Koordinate eines Punktes bestimmen">
-        <img src="vendor/potree/resources/icons/point.svg" alt=""><span>Punkt</span>
+              title="Determine a point coordinate" data-lidar-i18n-title="tools.pointTitle">
+        <img src="vendor/potree/resources/icons/point.svg" alt=""><span data-lidar-i18n="tools.point">Point</span>
       </button>
       <button class="tool-button" type="button" data-tool="distance" disabled
-              title="Strecke oder Linienzug messen">
-        <img src="vendor/potree/resources/icons/distance.svg" alt=""><span>Strecke</span>
+              title="Measure a distance or polyline" data-lidar-i18n-title="tools.distanceTitle">
+        <img src="vendor/potree/resources/icons/distance.svg" alt=""><span data-lidar-i18n="tools.distance">Distance</span>
       </button>
       <button class="tool-button" type="button" data-tool="height" disabled
-              title="Vertikalen Höhenunterschied messen">
-        <img src="vendor/potree/resources/icons/height.svg" alt=""><span>Höhe</span>
+              title="Measure a vertical height difference" data-lidar-i18n-title="tools.heightTitle">
+        <img src="vendor/potree/resources/icons/height.svg" alt=""><span data-lidar-i18n="tools.height">Height</span>
       </button>
       <button class="tool-button" type="button" data-tool="area" disabled
-              title="Polygonfläche messen">
-        <img src="vendor/potree/resources/icons/area.svg" alt=""><span>Fläche</span>
+              title="Measure a polygon area" data-lidar-i18n-title="tools.areaTitle">
+        <img src="vendor/potree/resources/icons/area.svg" alt=""><span data-lidar-i18n="tools.area">Area</span>
       </button>
       <button class="tool-button" type="button" data-tool="angle" disabled
-              title="Winkel aus drei Punkten messen">
-        <img src="vendor/potree/resources/icons/angle.png" alt=""><span>Winkel</span>
+              title="Measure an angle from three points" data-lidar-i18n-title="tools.angleTitle">
+        <img src="vendor/potree/resources/icons/angle.png" alt=""><span data-lidar-i18n="tools.angle">Angle</span>
       </button>
     </div>
 
     <div class="tool-divider" aria-hidden="true"></div>
 
-    <div class="tool-group" aria-label="Auswerten">
-      <span class="group-label">Auswerten</span>
+    <div class="tool-group" aria-label="Analyse" data-lidar-i18n-aria-label="tools.evaluate">
+      <span class="group-label" data-lidar-i18n="tools.evaluate">Analyse</span>
       <button class="tool-button" type="button" data-tool="profile" disabled
-              title="Höhenprofil entlang einer Linie untersuchen">
-        <img src="vendor/potree/resources/icons/profile.svg" alt=""><span>Profil</span>
+              title="Inspect an elevation profile along a line" data-lidar-i18n-title="tools.profileTitle">
+        <img src="vendor/potree/resources/icons/profile.svg" alt=""><span data-lidar-i18n="tools.profile">Profile</span>
       </button>
       <button class="tool-button" type="button" data-tool="clip" disabled
-              title="Punktwolke mit einer verschiebbaren Box beschneiden">
-        <img src="vendor/potree/resources/icons/clip_volume.svg" alt=""><span>Schnitt</span>
+              title="Clip the point cloud with a movable box" data-lidar-i18n-title="tools.clipTitle">
+        <img src="vendor/potree/resources/icons/clip_volume.svg" alt=""><span data-lidar-i18n="tools.clip">Clip</span>
       </button>
     </div>
 
     <div class="tool-divider" aria-hidden="true"></div>
 
-    <div class="tool-group" aria-label="Ansicht">
-      <span class="group-label">Ansicht</span>
+    <div class="tool-group" aria-label="View" data-lidar-i18n-aria-label="tools.view">
+      <span class="group-label" data-lidar-i18n="tools.view">View</span>
       <button class="tool-button" type="button" data-action="fit" disabled
-              title="Gesamten Scan in die Ansicht einpassen">
-        <img src="vendor/potree/resources/icons/focus.svg" alt=""><span>Einpassen</span>
+              title="Fit the entire scan into the view" data-lidar-i18n-title="tools.fitTitle">
+        <img src="vendor/potree/resources/icons/focus.svg" alt=""><span data-lidar-i18n="tools.fit">Fit</span>
       </button>
       <button class="tool-button" type="button" data-action="top" disabled
-              title="Senkrechte Draufsicht anzeigen">
-        <img src="vendor/potree/resources/icons/top.svg" alt=""><span>Draufsicht</span>
+              title="Show a vertical top view" data-lidar-i18n-title="tools.topTitle">
+        <img src="vendor/potree/resources/icons/top.svg" alt=""><span data-lidar-i18n="tools.top">Top view</span>
       </button>
       <button class="tool-button danger-on-hover" type="button" data-action="reset" disabled
-              title="Alle Messungen, Profile und Schnittboxen entfernen">
-        <img src="vendor/potree/resources/icons/reset_tools.svg" alt=""><span>Rücksetzen</span>
+              title="Remove all measurements, profiles, and clipping boxes"
+              data-lidar-i18n-title="tools.resetTitle">
+        <img src="vendor/potree/resources/icons/reset_tools.svg" alt=""><span data-lidar-i18n="tools.reset">Reset</span>
       </button>
     </div>
   </nav>
 
   <div class="status-pill" id="viewer-status" role="status" aria-live="polite">
     <span class="status-dot" aria-hidden="true"></span>
-    <span id="viewer-status-text">Viewer wird geladen …</span>
+    <span id="viewer-status-text" data-lidar-i18n="status.loading">Loading viewer …</span>
   </div>
 
   <div class="loading-overlay" id="loading-overlay" role="alert" aria-live="assertive">
     <div class="loading-card">
       <div class="spinner" id="loading-spinner" aria-hidden="true"></div>
-      <h1 id="loading-title">Punktwolke wird vorbereitet</h1>
-      <p id="loading-message">Metadaten und erste Punkte werden geladen …</p>
-      <button class="primary-button hidden" id="loading-retry" type="button">Neu laden</button>
+      <h1 id="loading-title" data-lidar-i18n="loading.title">Preparing point cloud</h1>
+      <p id="loading-message" data-lidar-i18n="loading.initial">Loading metadata and initial points …</p>
+      <button class="primary-button hidden" id="loading-retry" type="button"
+              data-lidar-i18n="loading.retry">Reload</button>
     </div>
   </div>
 
   <dialog class="app-dialog" id="help-dialog" aria-labelledby="help-title">
     <div class="dialog-heading">
       <div>
-        <span class="eyebrow">Bedienung</span>
-        <h2 id="help-title">So funktioniert der Viewer</h2>
+        <span class="eyebrow" data-lidar-i18n="help.eyebrow">Help</span>
+        <h2 id="help-title" data-lidar-i18n="help.title">How to use the viewer</h2>
       </div>
-      <button class="dialog-close" type="button" data-close-dialog aria-label="Dialog schließen">×</button>
+      <button class="dialog-close" type="button" data-close-dialog aria-label="Close dialog"
+              data-lidar-i18n-aria-label="dialog.close">×</button>
     </div>
 
     <div class="help-grid">
       <section>
-        <h3>Ansicht bewegen</h3>
+        <h3 data-lidar-i18n="help.navigationTitle">Move the view</h3>
         <dl class="shortcut-list">
-          <div><dt>Linke Maustaste</dt><dd>Drehen</dd></div>
-          <div><dt>Rechte Maustaste</dt><dd>Verschieben</dd></div>
-          <div><dt>Mausrad</dt><dd>Zoomen</dd></div>
+          <div><dt data-lidar-i18n="help.leftMouse">Left mouse button</dt><dd data-lidar-i18n="help.rotate">Rotate</dd></div>
+          <div><dt data-lidar-i18n="help.rightMouse">Right mouse button</dt><dd data-lidar-i18n="help.pan">Pan</dd></div>
+          <div><dt data-lidar-i18n="help.mouseWheel">Mouse wheel</dt><dd data-lidar-i18n="help.zoom">Zoom</dd></div>
         </dl>
       </section>
       <section>
-        <h3>Messen und auswerten</h3>
-        <p>Werkzeug wählen und Punkte mit der linken Maustaste setzen. Mit der rechten Maustaste wird ein Linienzug, eine Fläche oder ein Profil abgeschlossen.</p>
-        <p>Beim Profil öffnet sich anschließend die 2D-Auswertung. Dort sind auch CSV- und LAS-Export verfügbar.</p>
+        <h3 data-lidar-i18n="help.measureTitle">Measure and analyse</h3>
+        <p data-lidar-i18n="help.measureText">Choose a tool and place points with the left mouse button. Right-click to finish a polyline, area, or profile.</p>
+        <p data-lidar-i18n="help.profileText">Completing a profile opens the 2D analysis, which also provides CSV and LAS exports.</p>
       </section>
       <section>
-        <h3>Schnittbox</h3>
-        <p>„Schnitt“ setzt eine Box und zeigt nur Punkte innerhalb der Box. Die farbigen Griffe dienen zum Verschieben, Drehen und Skalieren.</p>
+        <h3 data-lidar-i18n="help.clipTitle">Clipping box</h3>
+        <p data-lidar-i18n="help.clipText">Clip places a box and shows only the points inside it. Use the coloured handles to move, rotate, and scale the box.</p>
       </section>
       <section>
-        <h3>Erweiterte Funktionen</h3>
-        <p>Unter <strong>Details</strong> stehen die vollständige Potree-Oberfläche, Darstellungsoptionen und der Export von Messgeometrien als GeoJSON oder DXF bereit.</p>
-        <p>Die Qualitätsstufen ändern nur die Darstellung. „Hoch“ und „Maximum“ zeigen mehr Punkte, benötigen aber mehr Datenverkehr, Arbeitsspeicher und Grafikleistung.</p>
+        <h3 data-lidar-i18n="help.advancedTitle">Advanced features</h3>
+        <p data-lidar-i18n="help.advancedText">Details opens the complete Potree interface, rendering options, and GeoJSON or DXF export for measurement geometries.</p>
+        <p data-lidar-i18n="help.qualityText">Quality levels affect rendering only. High and Maximum display more points but require more data traffic, memory, and graphics performance.</p>
       </section>
     </div>
 
-    <div class="note-box">
-      Die Scan-Koordinaten sind lokal und in Metern. Es ist kein globales Koordinatenreferenzsystem hinterlegt.
+    <div class="note-box" data-lidar-i18n="help.coordinates">
+      Scan coordinates are local and measured in metres. No global coordinate reference system is defined.
     </div>
   </dialog>
 
   <dialog class="app-dialog compact-dialog" id="info-dialog" aria-labelledby="info-title">
     <div class="dialog-heading">
       <div>
-        <span class="eyebrow">Datensatz</span>
-        <h2 id="info-title">LiDAR-Scan</h2>
+        <span class="eyebrow" data-lidar-i18n="info.eyebrow">Dataset</span>
+        <h2 id="info-title">LiDAR scan</h2>
       </div>
-      <button class="dialog-close" type="button" data-close-dialog aria-label="Dialog schließen">×</button>
+      <button class="dialog-close" type="button" data-close-dialog aria-label="Close dialog"
+              data-lidar-i18n-aria-label="dialog.close">×</button>
     </div>
 
     <table class="dataset-table">
       <tbody>
-        <tr><th scope="row">Punkte</th><td id="info-points">–</td></tr>
-        <tr><th scope="row">Ausdehnung</th><td id="info-extent">–</td></tr>
-        <tr><th scope="row">Attribute</th><td id="info-attributes">–</td></tr>
-        <tr><th scope="row">Webformat</th><td id="info-format">–</td></tr>
-        <tr><th scope="row">Quelle</th><td id="info-source">–</td></tr>
-        <tr><th scope="row">Zugriff</th><td id="info-access">Geschützter Zenodo-Link</td></tr>
-        <tr><th scope="row">Darstellung</th><td id="info-quality">Auto</td></tr>
-        <tr><th scope="row">Koordinaten</th><td id="info-coordinates">Lokal, m (kein CRS)</td></tr>
+        <tr><th scope="row" data-lidar-i18n="info.points">Points</th><td id="info-points">–</td></tr>
+        <tr><th scope="row" data-lidar-i18n="info.extent">Extent</th><td id="info-extent">–</td></tr>
+        <tr><th scope="row" data-lidar-i18n="info.attributes">Attributes</th><td id="info-attributes">–</td></tr>
+        <tr><th scope="row" data-lidar-i18n="info.webFormat">Web format</th><td id="info-format">–</td></tr>
+        <tr><th scope="row" data-lidar-i18n="info.source">Source</th><td id="info-source">–</td></tr>
+        <tr><th scope="row" data-lidar-i18n="info.access">Access</th><td id="info-access" data-lidar-i18n="info.accessLink">Protected Zenodo link</td></tr>
+        <tr><th scope="row" data-lidar-i18n="info.rendering">Rendering</th><td id="info-quality">Auto</td></tr>
+        <tr><th scope="row" data-lidar-i18n="info.coordinates">Coordinates</th><td id="info-coordinates" data-lidar-i18n="info.coordinatesDefault">Local, m (no CRS)</td></tr>
       </tbody>
     </table>
-    <p class="dialog-caption">Die Punktwolke wird bei Bedarf direkt aus dem geschützten Zenodo-Datensatz geladen. Der Zugang gilt nur in diesem Browser-Tab.</p>
+    <p class="dialog-caption" data-lidar-i18n="info.caption">The point cloud is streamed on demand directly from the protected Zenodo dataset. Access is valid only in this browser tab.</p>
     <div class="dialog-actions">
-      <button class="secondary-button" id="clear-access" type="button">Zugang aus diesem Tab entfernen</button>
+      <button class="secondary-button" id="clear-access" type="button"
+              data-lidar-i18n="info.clearAccess">Remove access from this tab</button>
     </div>
   </dialog>
 
   <dialog class="app-dialog compact-dialog" id="reset-dialog" aria-labelledby="reset-title">
     <div class="dialog-heading">
       <div>
-        <span class="eyebrow">Zurücksetzen</span>
-        <h2 id="reset-title">Auswertungen entfernen?</h2>
+        <span class="eyebrow" data-lidar-i18n="reset.eyebrow">Reset</span>
+        <h2 id="reset-title" data-lidar-i18n="reset.title">Remove analyses?</h2>
       </div>
-      <button class="dialog-close" type="button" data-close-dialog aria-label="Dialog schließen">×</button>
+      <button class="dialog-close" type="button" data-close-dialog aria-label="Close dialog"
+              data-lidar-i18n-aria-label="dialog.close">×</button>
     </div>
-    <p>Alle Messungen, Profile und Schnittboxen dieser Sitzung werden entfernt. Der Scan selbst bleibt unverändert.</p>
+    <p data-lidar-i18n="reset.message">All measurements, profiles, and clipping boxes from this session will be removed. The scan itself remains unchanged.</p>
     <div class="dialog-actions">
-      <button class="secondary-button" type="button" data-close-dialog>Abbrechen</button>
-      <button class="danger-button" id="confirm-reset" type="button">Auswertungen entfernen</button>
+      <button class="secondary-button" type="button" data-close-dialog
+              data-lidar-i18n="reset.cancel">Cancel</button>
+      <button class="danger-button" id="confirm-reset" type="button"
+              data-lidar-i18n="reset.confirm">Remove analyses</button>
     </div>
   </dialog>
 

@@ -1,252 +1,252 @@
-# QA-Bericht: SiteScape → LAZ → COPC/Potree
+# QA Report: SiteScape → LAZ → COPC/Potree
 
-**Prüfdatum:** 1. September 2026  
-**Referenzscan:** SPZ Squash  
-**Prüfziel:** Feststellen, ob vorhandene SiteScape-Dateien ohne erneute Aufnahme als farbige, maßstäbliche Punktwolke für einen statischen Potree-Webviewer aufbereitet werden können.
+**Test date:** September 1, 2026<br>
+**Reference scan:** SPZ Squash<br>
+**Test objective:** Determine whether existing SiteScape files can be processed, without rescanning, into a colored, to-scale point cloud for a static Potree web viewer.
 
-## Gesamturteil
+## Overall assessment
 
-**Bestanden für die lokale Datenpipeline.** Die E57- und PLY-Datei enthalten nach Normalisierung der PLY-Achsen exakt dieselben 11.033.814 XYZRGB-Punkte. Die E57-Datei wurde mit unveränderter Punktzahl und Farbe in eine LAZ-Datei, eine hierarchische COPC-Einzeldatei sowie einen lesbaren klassischen Potree-2-Datensatz überführt.
+**Passed for the local data pipeline.** After normalization of the PLY axes, the E57 and PLY files contain exactly the same 11,033,814 XYZRGB points. The E57 file was converted, with its point count and colors unchanged, into a LAZ file, a hierarchical single-file COPC dataset, and a readable classic Potree 2 dataset.
 
-Die Veröffentlichung auf GitHub Pages und der Abruf einer auf Zenodo veröffentlichten Datei sind externe Deployment-Schritte. Sie sind von der bestandenen Konvertierungsprüfung zu unterscheiden und müssen nach Anlage des echten öffentlichen Zenodo-Records noch einmal mit dessen endgültiger URL geprüft werden.
+Publishing to GitHub Pages and retrieving a file published on Zenodo are external deployment steps. They must be distinguished from the successful conversion test and must be tested again with the final URL after the actual public Zenodo record has been created.
 
-## 1. Prüfumfang
+## 1. Test scope
 
-| Test | Gegenstand | Status |
+| Test | Subject | Status |
 |---|---|---|
-| Quelldateien | Dateigröße, Hash, Punktzahl, Felder und Koordinatengültigkeit | Bestanden |
-| E57/PLY-Vergleich | Achsen, XYZ und RGB über alle Punkte | Bestanden |
-| E57 → LAZ | Punktzahl, Grenzen, RGB, LAS-Metadaten | Bestanden |
-| LAZ → COPC | Punktzahl, Skala, Offsets, XYZRGB-Prüfsummen und LOD-Abfragen | Bestanden |
-| LAZ → Potree 2 | Metadaten, Punktzahl, Attribute und Ausgabedateien | Bestanden |
-| Lokaler HTTP-Server | CORS, `OPTIONS` und Byte-Range-Abruf der COPC-Datei | Bestanden |
-| Öffentlicher Zenodo-COPC-Test | CORS, Byte-Range und progressive Teilabrufe an einem bestehenden Record | Bestanden |
-| Browser-Viewer | RGB-Rendering und UI-Werkzeuge in einem echten Browser | Separater Abschlusslauf |
-| Zenodo-Produktivlink | Endgültiger Record, CORS, Range und Browserabruf | Nach Veröffentlichung erneut prüfen |
-| Polycam | GLB-Textur und kostenpflichtige Punktwolken-Exporte | Nicht durch SiteScape-Dateien abgedeckt |
+| Source files | File size, hash, point count, fields, and coordinate validity | Passed |
+| E57/PLY comparison | Axes, XYZ, and RGB across all points | Passed |
+| E57 → LAZ | Point count, bounds, RGB, and LAS metadata | Passed |
+| LAZ → COPC | Point count, scale, offsets, XYZRGB checksums, and LOD queries | Passed |
+| LAZ → Potree 2 | Metadata, point count, attributes, and output files | Passed |
+| Local HTTP server | CORS, `OPTIONS`, and byte-range retrieval of the COPC file | Passed |
+| Public Zenodo COPC test | CORS, byte ranges, and progressive partial retrieval from an existing record | Passed |
+| Browser viewer | RGB rendering and UI tools in a real browser | Separate final test run |
+| Production Zenodo link | Final record, CORS, byte ranges, and browser retrieval | Retest after publication |
+| Polycam | GLB textures and paid point-cloud exports | Not covered by the SiteScape files |
 
-Die maschinenlesbaren Primärberichte sind [qa/e57-ply-comparison.json](qa/e57-ply-comparison.json), [qa/e57-to-laz.json](qa/e57-to-laz.json) und [qa/laz-to-copc.json](qa/laz-to-copc.json).
+The machine-readable primary reports are [qa/e57-ply-comparison.json](qa/e57-ply-comparison.json), [qa/e57-to-laz.json](qa/e57-to-laz.json), and [qa/laz-to-copc.json](qa/laz-to-copc.json).
 
-## 2. Quelldateien
+## 2. Source files
 
-| Datei | Größe | SHA-256 |
+| File | Size | SHA-256 |
 |---|---:|---|
-| `SPZ Squash.e57` | 166.226.944 Byte | `ad611e9563d9d41404bd49779656896f1b0c4dfc58e5ee1cc8d894c13f74e2df` |
-| `SPZ Squash.ply` | 165.507.429 Byte | `f89c35c02e8dc1778dd4a7fbf35c9132267e7f1ae39ca5e4cb7f1b1958aba511` |
+| `SPZ Squash.e57` | 166,226,944 bytes | `ad611e9563d9d41404bd49779656896f1b0c4dfc58e5ee1cc8d894c13f74e2df` |
+| `SPZ Squash.ply` | 165,507,429 bytes | `f89c35c02e8dc1778dd4a7fbf35c9132267e7f1ae39ca5e4cb7f1b1958aba511` |
 
-Beide Dateien enthalten:
+Both files contain:
 
-- 11.033.814 Punkte;
-- XYZ-Koordinaten als 32-Bit-Gleitkommazahlen;
-- Rot, Grün und Blau als 8-Bit-Werte;
-- keine nicht-endlichen XYZ-Werte.
+- 11,033,814 points;
+- XYZ coordinates as 32-bit floating-point values;
+- red, green, and blue as 8-bit values;
+- no non-finite XYZ values.
 
-Die E57-Datei enthält keine Scan-Pose und kein CRS/EPSG. Die Koordinaten sind daher lokal. Im getesteten E57-Datensatz wurde Z als Hochachse beibehalten.
+The E57 file contains neither a scan pose nor a CRS/EPSG definition. Its coordinates are therefore local. Z was retained as the vertical axis in the tested E57 dataset.
 
-### E57-Koordinatengrenzen
+### E57 coordinate bounds
 
-| Achse | Minimum | Maximum | Spannweite |
+| Axis | Minimum | Maximum | Range |
 |---|---:|---:|---:|
-| X | −7,730779648 | −1,717587113 | 6,013192534 |
-| Y | −10,272649765 | −4,815305710 | 5,457344055 |
-| Z | 1,373824239 | 4,859850407 | 3,486026168 |
+| X | −7.730779648 | −1.717587113 | 6.013192534 |
+| Y | −10.272649765 | −4.815305710 | 5.457344055 |
+| Z | 1.373824239 | 4.859850407 | 3.486026168 |
 
-### E57-Farbwerte
+### E57 color values
 
-| Kanal | Minimum | Maximum | Mittelwert |
+| Channel | Minimum | Maximum | Mean |
 |---|---:|---:|---:|
-| Rot | 0 | 255 | 159,5727 |
-| Grün | 0 | 255 | 161,5758 |
-| Blau | 0 | 255 | 159,6769 |
+| Red | 0 | 255 | 159.5727 |
+| Green | 0 | 255 | 161.5758 |
+| Blue | 0 | 255 | 159.6769 |
 
-## 3. E57/PLY-Gleichheit
+## 3. E57/PLY equality
 
-Die rohe PLY-Datei verwendet die SiteScape-Konvention Y-up. Vor dem Vergleich wurde jeder PLY-Punkt wie folgt in dasselbe Z-up-System wie E57 überführt:
+The raw PLY file uses SiteScape's Y-up convention. Before comparison, each PLY point was transformed into the same Z-up coordinate system as the E57 file as follows:
 
 ```text
 (x, y, z)PLY → (x, -z, y)Z-up
 ```
 
-| Feld | Abweichende Punkte | Maximale absolute Differenz |
+| Field | Differing points | Maximum absolute difference |
 |---|---:|---:|
 | X | 0 | 0 |
 | Y | 0 | 0 |
 | Z | 0 | 0 |
-| Rot | 0 | 0 |
-| Grün | 0 | 0 |
-| Blau | 0 | 0 |
+| Red | 0 | 0 |
+| Green | 0 | 0 |
+| Blue | 0 | 0 |
 
-**Befund:** Die Dateien sind keine unterschiedlichen Messungen, sondern zwei Darstellungen derselben Punktfolge. Für Archivierung und Konvertierung wird E57 als Master empfohlen; PLY ist eine optionale Austauschkopie und für diesen Scan nicht zusätzlich erforderlich.
+**Finding:** The files are not different measurements; they are two representations of the same point sequence. E57 is recommended as the archival and conversion master. PLY is an optional interchange copy and is not additionally required for this scan.
 
 ## 4. E57 → LAZ
 
-Ausgabedatei: `source/spz-squash.laz`
+Output file: `source/spz-squash.laz`
 
-| Merkmal | Ergebnis |
+| Property | Result |
 |---|---|
-| Dateigröße | 85.258.517 Byte |
+| File size | 85,258,517 bytes |
 | SHA-256 | `1af76758aba343b3d50e8546a87d26a1446f75ae9538453df44890abb3c595cb` |
-| Punktzahl | 11.033.814 |
-| LAS-Version | 1.2 |
-| Punktformat | 2 (XYZ + RGB) |
-| Maßstab | 0,000001 auf allen drei Achsen |
+| Point count | 11,033,814 |
+| LAS version | 1.2 |
+| Point format | 2 (XYZ + RGB) |
+| Scale | 0.000001 on all three axes |
 | Offsets | X = −8, Y = −11, Z = 1 |
-| RGB16 | je Kanal 0 bis 65.535 |
-| CRS | keines hinterlegt |
+| RGB16 | 0 to 65,535 per channel |
+| CRS | None defined |
 
-Die 8-Bit-Farben wurden mit dem exakten Faktor 257 in den vollständigen 16-Bit-Bereich überführt. Die nach dem Schreiben erneut gelesene Punktzahl stimmt mit der Quelle überein. Sämtliche Koordinatengrenzen lagen innerhalb der durch die 1-µm-Quantisierung erlaubten Toleranz von 0,5 µm.
+The 8-bit colors were expanded to the full 16-bit range using the exact factor 257. The point count read back after writing matches the source. All coordinate bounds were within the tolerance of 0.5 µm permitted by the 1 µm quantization.
 
-### Nachgelesene LAZ-Grenzen
+### LAZ bounds read back from the file
 
-| Achse | Minimum | Maximum |
+| Axis | Minimum | Maximum |
 |---|---:|---:|
-| X | −7,730780 | −1,717587 |
-| Y | −10,272650 | −4,815306 |
-| Z | 1,373824 | 4,859850 |
+| X | −7.730780 | −1.717587 |
+| Y | −10.272650 | −4.815306 |
+| Z | 1.373824 | 4.859850 |
 
 ## 5. LAZ → Potree 2
 
-Verwendet wurden PotreeConverter **2.1.3** und die Optionen `--encoding BROTLI -m poisson --attributes rgb`.
+PotreeConverter **2.1.3** was used with the options `--encoding BROTLI -m poisson --attributes rgb`.
 
-Die erzeugte `metadata.json` meldet:
+The generated `metadata.json` reports:
 
-| Merkmal | Wert |
+| Property | Value |
 |---|---|
-| Potree-Datenformat | 2.0 |
-| Punktzahl | 11.033.814 |
-| Kodierung | BROTLI |
-| Attribute | `position`, `rgb` |
-| Koordinatenskala | 0,000001 auf allen Achsen |
-| Projektionsangabe | leer, passend zum lokalen System |
+| Potree data format | 2.0 |
+| Point count | 11,033,814 |
+| Encoding | BROTLI |
+| Attributes | `position`, `rgb` |
+| Coordinate scale | 0.000001 on all axes |
+| Projection | Empty, as appropriate for the local system |
 
-### Ausgabedateien
+### Output files
 
-| Datei | Größe | SHA-256 |
+| File | Size | SHA-256 |
 |---|---:|---|
-| `metadata.json` | 1.115 Byte | `6b08d5db334e6ece7804d146899d6ef391452fbbff6323b295b7d0e087bef353` |
-| `hierarchy.bin` | 108.614 Byte | `76cfc85137354b13c838f26e570dfce838e1150f21de2fffe841b00c57ad7d08` |
-| `octree.bin` | 102.394.259 Byte | `42dc6d17d87f1f14bf8ce7f4e229c7ecd0948106713240843b68845b93b5cf33` |
+| `metadata.json` | 1,115 bytes | `6b08d5db334e6ece7804d146899d6ef391452fbbff6323b295b7d0e087bef353` |
+| `hierarchy.bin` | 108,614 bytes | `76cfc85137354b13c838f26e570dfce838e1150f21de2fffe841b00c57ad7d08` |
+| `octree.bin` | 102,394,259 bytes | `42dc6d17d87f1f14bf8ce7f4e229c7ecd0948106713240843b68845b93b5cf33` |
 
-Die äußere `boundingBox` in Potrees Metadaten ist absichtlich würfelförmig und deshalb größer als die tatsächliche Punktwolke. Für die Datenprüfung wurden die Grenzen des Attributs `position` verwendet; sie stimmen mit den LAZ-Grenzen überein.
+The outer `boundingBox` in Potree's metadata is intentionally cubic and is therefore larger than the actual point cloud. The bounds of the `position` attribute were used for data validation; they match the LAZ bounds.
 
-### Build-Hinweis
+### Build note
 
-Der hier verwendete Linux-Quellbuild des Converters erzeugte alle drei finalen Dateien, meldete anschließend aber beim Entfernen seines temporären Chunk-Verzeichnisses einen späten Dateisystemfehler. Daher wurden nicht allein der Prozess-Exitcode, sondern die fertigen Dateien, die Metadaten, Attribute und Punktzahl separat geprüft. Für die normale Windows-Verarbeitung ist das offizielle PotreeConverter-2.1.3-Binary vorzuziehen.
+The Linux source build of the converter used here produced all three final files, but subsequently reported a late filesystem error while removing its temporary chunk directory. The test therefore did not rely solely on the process exit code: the completed files, metadata, attributes, and point count were verified separately. The official PotreeConverter 2.1.3 binary is preferable for normal processing on Windows.
 
 ## 6. LAZ → COPC
 
-Für die Zenodo-Zielarchitektur wurde `source/spz-squash.laz` mit dem portablen Linux-Binary von **360-geo/copc_converter 0.9.15** in `viewer/data/spz-squash.copc.laz` umgewandelt.
+For the target Zenodo architecture, `source/spz-squash.laz` was converted to `viewer/data/spz-squash.copc.laz` using the portable Linux binary of **360-geo/copc_converter 0.9.15**.
 
-| Merkmal | Ergebnis |
+| Property | Result |
 |---|---|
-| Dateigröße | 99.941.088 Byte |
+| File size | 99,941,088 bytes |
 | SHA-256 | `0fde8b572590b40d75cf44249c5b77e58c4f31bc3fb80958a791b9310123eb21` |
-| Punktzahl | 11.033.814 |
-| LAS-Version | 1.4 |
-| Punktformat | 7 (einschließlich RGB) |
-| COPC-VLR | vorhanden |
-| Skala | 0,000001 auf allen Achsen |
+| Point count | 11,033,814 |
+| LAS version | 1.4 |
+| Point format | 7 (including RGB) |
+| COPC VLR | Present |
+| Scale | 0.000001 on all axes |
 | Offsets | X = −8, Y = −11, Z = 1 |
-| RGB16 | je Kanal 0 bis 65.535 |
-| CRS | keines hinterlegt |
+| RGB16 | 0 to 65,535 per channel |
+| CRS | None defined |
 
-COPC ordnet Punkte räumlich neu; ein Vergleich gleicher Datensatzindizes wäre daher nicht aussagekräftig. Stattdessen wurden über den vollständigen LAZ- und COPC-Inhalt Punktzahl, RGB-Summen sowie modulare Summen und Quadratsummen der quantisierten XYZ-Werte verglichen. Alle Prüfwerte waren exakt gleich. Damit sind weder Punkte noch Farben verloren gegangen oder verändert worden.
+COPC reorders points spatially, so comparing identical dataset indices would not be meaningful. Instead, the point count, RGB sums, and modular sums and sums of squares of the quantized XYZ values were compared across the complete LAZ and COPC contents. All test values were exactly equal. No points or colors were therefore lost or changed.
 
-Der COPC-Header verwendet dieselbe Skala und dieselben Offsets. Sein umschließender Headerbereich ist an einzelnen Minima um höchstens eine Quantisierungseinheit von 1 µm erweitert; die geprüften Punktwerte selbst sind unverändert.
+The COPC header uses the same scale and offsets. Its enclosing header bounds extend beyond individual minima by no more than one quantization unit of 1 µm; the validated point values themselves are unchanged.
 
-### Räumliche COPC-Abfragen
+### Spatial COPC queries
 
-`laspy.CopcReader` konnte dieselbe Datei hierarchisch in drei Detailstufen lesen:
+`laspy.CopcReader` read the same file hierarchically at three levels of detail:
 
-| angeforderte Auflösung | gelieferte Punkte | Status |
+| Requested resolution | Points returned | Status |
 |---:|---:|---|
-| 0,5 | 37.695 | Bestanden |
-| 0,01 | 3.971.081 | Bestanden |
-| vollständig | 11.033.814 | Bestanden |
+| 0.5 | 37,695 | Passed |
+| 0.01 | 3,971,081 | Passed |
+| Full | 11,033,814 | Passed |
 
-Damit ist nicht nur der LAS-Header lesbar: Hierarchie, räumliche Teilabfragen und der vollständige Datenabruf funktionieren. Dies ist die technische Grundlage für progressives Nachladen im Potree-Viewer über HTTP-Range.
+This demonstrates that more than the LAS header is readable: the hierarchy, spatial subset queries, and complete data retrieval all work. This is the technical basis for progressive loading in the Potree viewer over HTTP Range requests.
 
-### Lokaler HTTP-Range-Test
+### Local HTTP Range test
 
-Der mitgelieferte Server `scripts/serve_viewer.py` wurde direkt gegen die erzeugte COPC-Datei geprüft:
+The included server `scripts/serve_viewer.py` was tested directly against the generated COPC file:
 
-| Anfrage | Ergebnis |
+| Request | Result |
 |---|---|
-| `GET` mit `Range: bytes=0-999` | `206 Partial Content` |
+| `GET` with `Range: bytes=0-999` | `206 Partial Content` |
 | `Content-Range` | `bytes 0-999/99941088` |
-| übertragene Länge | 1.000 Byte |
+| Transferred length | 1,000 bytes |
 | CORS | `Access-Control-Allow-Origin: *` |
-| Range-Ankündigung | `Accept-Ranges: bytes` |
-| `OPTIONS` | `204 No Content`; `GET, HEAD, OPTIONS` und Header `Range` erlaubt |
+| Range advertisement | `Accept-Ranges: bytes` |
+| `OPTIONS` | `204 No Content`; permits `GET, HEAD, OPTIONS` and the `Range` header |
 
-Der reproduzierbare lokale Startbefehl lautet `py scripts\serve_viewer.py`; die Seite ist anschließend unter `http://127.0.0.1:8000/` erreichbar.
+The reproducible local start command is `py scripts\serve_viewer.py`; the page is then available at `http://127.0.0.1:8000/`.
 
-## 7. Zenodo-HTTP-Test
+## 7. Zenodo HTTP test
 
-Am 1. September 2026 wurde ein bereits veröffentlichter COPC-Datensatz auf Zenodo als externe Browserquelle geprüft. Der für den Viewer geeignete Endpunkt lautet:
+On September 1, 2026, an existing published COPC dataset on Zenodo was tested as an external browser source. The endpoint suitable for the viewer is:
 
 ```text
 https://zenodo.org/api/records/RECORD_ID/files/DATEINAME.copc.laz/content
 ```
 
-Er lieferte im Live-Test:
+In the live test, it returned:
 
-- `Access-Control-Allow-Origin: *` für den ursprungsübergreifenden Browserzugriff;
-- Unterstützung des `Range`-Headers im Preflight;
-- `206 Partial Content` und einen korrekten `Content-Range` bei Byte-Bereichsanfragen;
-- erfolgreich gelesene COPC-Header-, Hierarchie-, Wurzelpunkt- und RGB-Bereiche.
+- `Access-Control-Allow-Origin: *` for cross-origin browser access;
+- support for the `Range` header in the preflight response;
+- `206 Partial Content` and a correct `Content-Range` for byte-range requests;
+- successfully read COPC header, hierarchy, root-point, and RGB ranges.
 
-Der normale sichtbare Downloadpfad `/records/RECORD_ID/files/DATEINAME` unterstützte zwar Byte-Ranges, aber nicht die für GitHub Pages nötige CORS-Freigabe. Er eignet sich als Downloadlink, nicht als Daten-URL im Viewer.
+The ordinary visible download path `/records/RECORD_ID/files/DATEINAME` supported byte ranges but did not provide the CORS authorization required by GitHub Pages. It is suitable as a download link, not as the viewer's data URL.
 
-**Abgrenzung:** Dieser Test bestätigt die technische Eignung des Zenodo-API-Endpunkts. Der eigene Record existiert noch nicht; seine endgültige, versionsspezifische URL muss nach der Veröffentlichung erneut geprüft und im Viewer fest eingetragen werden. Zenodo ist ein Forschungsdatenarchiv und kein unbegrenztes Streaming-CDN, weshalb Browser-Caching und ein vernünftiges Punktbudget wichtig bleiben.
+**Scope:** This test confirms the technical suitability of the Zenodo API endpoint. The project's own record does not yet exist; its final version-specific URL must be tested again after publication and entered permanently in the viewer. Zenodo is a research data repository, not an unlimited streaming CDN, so browser caching and a reasonable point budget remain important.
 
-## 8. Viewer-Funktionen und fachliche Grenzen
+## 8. Viewer functions and technical limitations
 
-Der Potree-Viewer kann mit diesem Datentyp folgende Operationen ausführen:
+The Potree viewer can perform the following operations with this data type:
 
-| Funktion | Technischer Status | Fachliche Grenze |
+| Function | Technical status | Technical limitation |
 |---|---|---|
-| RGB-Darstellung | `rgb` ist im Potree-Datensatz vorhanden | Punktfarben sind keine Mesh-Fototextur |
-| Punktkoordinate | Standard-Potree-Messwerkzeug | Lokales System ohne EPSG |
-| Distanz, Höhe, Winkel, Fläche | Standard-Potree-Messwerkzeuge | Genauigkeit hängt von Scan und Punktwahl ab |
-| Profil/Querschnitt | Profilwerkzeug mit Breite; CSV/LAS-Export | Keine automatische CAD-Schnittzeichnung |
-| Clipping | Box-/Volumen-Clipping | Visuelle Selektion, keine dauerhafte Datenänderung |
+| RGB display | `rgb` is present in the Potree dataset | Point colors are not a photographic mesh texture |
+| Point coordinates | Standard Potree measurement tool | Local coordinate system without EPSG |
+| Distance, height, angle, area | Standard Potree measurement tools | Accuracy depends on the scan and point selection |
+| Profile/cross-section | Profile tool with width; CSV/LAS export | No automatic CAD section drawing |
+| Clipping | Box/volume clipping | Visual selection only; no permanent data modification |
 
-Die Testdateien tragen keine Intensität, Klassifikation, Normalen, Zeitstempel oder Georeferenz. Entsprechende Filter oder Auswertungen sind mit diesem Scan nicht möglich. Die vorhandenen XYZRGB-Daten reichen jedoch für Orientierung, manuelle Messungen, Profile und Schnitte aus.
+The test files contain no intensity, classification, normals, timestamps, or georeferencing. Corresponding filters or analyses are therefore not possible with this scan. The available XYZRGB data are nevertheless sufficient for orientation, manual measurements, profiles, and sections.
 
-## 9. Veröffentlichungsrisiken
+## 9. Publication risks
 
-| Risiko | Bewertung | Maßnahme |
+| Risk | Assessment | Mitigation |
 |---|---|---|
-| Git-Dateigrenze | `octree.bin` liegt nur knapp unter 100 MiB; andere Scans können darüber liegen | Scandaten auf Zenodo, nur Viewer-Code auf GitHub Pages |
-| Git LFS | Nicht als Datenquelle für GitHub Pages geeignet | Nicht für Browserdaten verwenden |
-| Zenodo-Dauerhaftigkeit | Entwürfe sind nicht der endgültige zitierbare Stand | Erst veröffentlichten, versionsspezifischen Record verwenden |
-| Zenodo-CORS/Range | Für partielles Nachladen erforderlich | Nach Publikation am echten `/api/records/.../content`-Endpunkt prüfen |
-| Zenodo-Lastgrenzen | Archiv ist kein unbegrenztes Streaming-CDN | Caching nutzen, Punktbudget begrenzen, keine unnötigen Reloads |
-| Datenschutz/Rechte | Technische Räume können sensible Details zeigen | Vor Veröffentlichung Freigabe und ggf. Redaktion prüfen |
+| Git file-size limit | `octree.bin` is only just below 100 MiB; other scans may exceed it | Store scan data on Zenodo and only viewer code on GitHub Pages |
+| Git LFS | Unsuitable as a data source for GitHub Pages | Do not use it for browser data |
+| Zenodo persistence | Drafts are not the final citable state | Use only the published, version-specific record |
+| Zenodo CORS/Range | Required for partial loading | Test the actual `/api/records/.../content` endpoint after publication |
+| Zenodo load limits | The repository is not an unlimited streaming CDN | Use caching, limit the point budget, and avoid unnecessary reloads |
+| Privacy/rights | Technical rooms may reveal sensitive details | Obtain publication clearance and redact content if necessary |
 
-## 10. Abgrenzung zu Polycam
+## 10. Scope distinction from Polycam
 
-Der bestandene Test reduziert das Risiko vor einem Polycam-Probeabo erheblich: Datenprüfung, LAZ-Erzeugung, Potree-Konvertierung und Analysekonzept funktionieren bereits mit einem realen Scan ähnlicher Größenordnung.
+The successful test substantially reduces the risk before starting a Polycam trial: data validation, LAZ generation, Potree conversion, and the analysis workflow have already been demonstrated with a real scan of a similar scale.
 
-Offen bleiben ausschließlich Polycam-spezifische Punkte:
+Only the following Polycam-specific matters remain unresolved:
 
-1. Welche Roh-/Exportformate der gewählte Tarif am Aktivierungstag tatsächlich freischaltet.
-2. Ob Polycam-E57/LAZ/PLY Farbe, Maßstab und Achsen wie erwartet enthält.
-3. Wie die fototexturierte GLB-Meshansicht neben der Potree-Punktwolke angeboten wird.
+1. Which source/export formats the selected plan actually enables on the activation date.
+2. Whether Polycam E57/LAZ/PLY exports contain colors, scale, and axes as expected.
+3. How the phototextured GLB mesh view should be offered alongside the Potree point cloud.
 
-GLB sollte unabhängig davon archiviert werden, weil es die anschauliche Fototextur trägt. Für die Analyse ist zusätzlich ein farbiger Punktwolkenexport sinnvoll. Ein einzelner Polycam-Testexport genügt zunächst zur QA; danach können während des Probezeitraums alle benötigten Formate exportiert werden.
+The GLB should be archived regardless, because it contains the illustrative photographic texture. A colored point-cloud export is additionally useful for analysis. One Polycam test export is initially sufficient for QA; all required formats can then be exported during the trial period.
 
-## 11. Freigabekriterium für die Gesamtsammlung
+## 11. Release criterion for the complete collection
 
-Ein weiterer Scan gilt als freigabefähig, wenn alle folgenden Punkte erfüllt sind:
+Another scan is considered ready for release when all of the following conditions are met:
 
-- Quelldatei und SHA-256 sind dokumentiert;
-- Punktzahl ist vor und nach der Konvertierung identisch;
-- XYZ enthält keine NaN-/Inf-Werte;
-- Hochachse und Maßstab wurden geprüft;
-- RGB ist im Ziel enthalten und visuell plausibel;
-- Potree/COPC lässt sich über HTTP laden;
-- Messen, Profil und Clipping funktionieren in einem aktuellen Browser;
-- öffentlicher Zenodo-Link verwendet den endgültigen, versionsspezifischen Record;
-- Publikationsrechte und Datenschutz sind geklärt.
+- The source file and SHA-256 hash are documented;
+- the point count is identical before and after conversion;
+- XYZ contains no NaN or Inf values;
+- the vertical axis and scale have been verified;
+- RGB is present in the target and visually plausible;
+- Potree/COPC loads over HTTP;
+- measurement, profile, and clipping tools work in a current browser;
+- the public Zenodo link uses the final, version-specific record;
+- publication rights and privacy requirements have been resolved.
