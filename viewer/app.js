@@ -1,10 +1,12 @@
 (function () {
   "use strict";
 
+  const i18n = window.LidarI18n;
+  const t = (key, values) => i18n ? i18n.t(key, values) : key;
   const QUALITY_STORAGE_KEY = "lidar-viewer.render-quality.v1";
   const DEFAULT_QUALITY_PROFILES = Object.freeze({
     auto: Object.freeze({
-      label: "Auto",
+      labelKey: "quality.auto",
       desktopPointBudget: 3_500_000,
       compactPointBudget: 1_200_000,
       minNodeSize: 20,
@@ -12,7 +14,7 @@
       shape: "CIRCLE",
     }),
     high: Object.freeze({
-      label: "Hoch",
+      labelKey: "quality.high",
       desktopPointBudget: 5_500_000,
       compactPointBudget: 2_000_000,
       minNodeSize: 10,
@@ -20,7 +22,7 @@
       shape: "CIRCLE",
     }),
     maximum: Object.freeze({
-      label: "Maximum",
+      labelKey: "quality.maximum",
       desktopPointBudget: 9_000_000,
       compactPointBudget: 3_500_000,
       minNodeSize: 5,
@@ -38,8 +40,9 @@
     const shape = ["SQUARE", "CIRCLE", "PARABOLOID"].includes(configured.shape)
       ? configured.shape : defaults.shape;
     return Object.freeze({
-      label: typeof configured.label === "string" && configured.label.trim()
-        ? configured.label.trim() : defaults.label,
+      labelKey: defaults.labelKey,
+      customLabel: typeof configured.label === "string" && configured.label.trim()
+        ? configured.label.trim() : null,
       desktopPointBudget: finiteOr(configured.desktopPointBudget, defaults.desktopPointBudget),
       compactPointBudget: finiteOr(configured.compactPointBudget, defaults.compactPointBudget),
       minNodeSize: finiteOr(configured.minNodeSize, defaults.minNodeSize),
@@ -53,7 +56,8 @@
     maximum: normaliseQualityProfile("maximum"),
   });
   const CONFIG = Object.freeze({
-    name: runtimeConfig.name || "Geschützter LiDAR-Viewer",
+    name: typeof runtimeConfig.name === "string" && runtimeConfig.name.trim()
+      ? runtimeConfig.name.trim() : null,
     manifestFile: runtimeConfig.manifestFile || "viewer-manifest.json",
     loadTimeoutMs: Number.isFinite(runtimeConfig.loadTimeoutMs) ? runtimeConfig.loadTimeoutMs : 180_000,
     defaultQuality: Object.hasOwn(QUALITY_PROFILES, runtimeConfig.defaultQuality)
@@ -72,18 +76,44 @@
     compactDevice: false,
     qualityMode: CONFIG.defaultQuality,
     qualityProfile: QUALITY_PROFILES[CONFIG.defaultQuality],
+    statusView: Object.freeze({ key: "status.loading", tone: "ready", values: {} }),
+    loadingView: Object.freeze({
+      titleKey: "loading.prepareTitle",
+      messageKey: "loading.prepareMessage",
+      values: {},
+    }),
   };
 
   const byId = (id) => document.getElementById(id);
   const toolButtons = () => Array.from(document.querySelectorAll("[data-tool]"));
   const actionButtons = () => Array.from(document.querySelectorAll("[data-action]"));
 
+  function currentLocale() {
+    return i18n ? i18n.locale() : "en-GB";
+  }
+
+  function viewerName() {
+    return CONFIG.name || t("app.name");
+  }
+
+  function qualityLabel(mode, profile = QUALITY_PROFILES[mode]) {
+    return profile.customLabel || t(profile.labelKey);
+  }
+
+  function localisedValues(values = {}) {
+    const rendered = { ...values };
+    if (Number.isFinite(values.countNumber)) rendered.count = formatInteger(values.countNumber);
+    if (values.qualityMode) rendered.quality = qualityLabel(values.qualityMode);
+    if (values.labelMode) rendered.label = qualityLabel(values.labelMode);
+    return rendered;
+  }
+
   function formatInteger(value) {
-    return new Intl.NumberFormat("de-AT", { maximumFractionDigits: 0 }).format(value);
+    return new Intl.NumberFormat(currentLocale(), { maximumFractionDigits: 0 }).format(value);
   }
 
   function formatMeters(value) {
-    return new Intl.NumberFormat("de-AT", {
+    return new Intl.NumberFormat(currentLocale(), {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     }).format(value) + " m";
@@ -102,7 +132,7 @@
     try {
       window.localStorage.setItem(QUALITY_STORAGE_KEY, mode);
     } catch (_error) {
-      // Der Viewer funktioniert auch, wenn dauerhafte Browser-Speicherung gesperrt ist.
+      // The viewer still works when persistent browser storage is unavailable.
     }
   }
 
@@ -110,10 +140,13 @@
     return state.compactDevice ? profile.compactPointBudget : profile.desktopPointBudget;
   }
 
-  function updateQualityInfo(profile, pointBudget) {
+  function updateQualityInfo(mode, profile, pointBudget) {
     const info = byId("info-quality");
     if (!info) return;
-    info.textContent = `${profile.label} · bis zu ${formatInteger(pointBudget)} Punkte gleichzeitig`;
+    info.textContent = t("quality.info", {
+      label: qualityLabel(mode, profile),
+      count: formatInteger(pointBudget),
+    });
   }
 
   function applyQuality(mode, { persist = false, announce = false } = {}) {
@@ -140,13 +173,13 @@
       material.activeAttributeName = "rgba";
     }
 
-    updateQualityInfo(profile, pointBudget);
+    updateQualityInfo(selectedMode, profile, pointBudget);
     if (persist) saveQualityPreference(selectedMode);
     if (announce && state.ready) {
-      setStatus(
-        `Darstellung ${profile.label} · bis zu ${formatInteger(pointBudget)} Punkte gleichzeitig`,
-        "ready",
-      );
+      setStatus("status.qualityChanged", "ready", {
+        labelMode: selectedMode,
+        countNumber: pointBudget,
+      });
     }
 
     return profile;
@@ -154,7 +187,7 @@
 
   async function resolveDataSource() {
     if (!window.ZenodoViewerAccess) {
-      throw new Error("Die lokale Zenodo-Zugriffskomponente fehlt.");
+      throw new Error("The local Zenodo access component is missing.");
     }
 
     const resolved = await window.ZenodoViewerAccess.resolveDataset(CONFIG.manifestFile);
@@ -169,12 +202,14 @@
   }
 
   function applyDatasetName(name, sourceLabel) {
-    document.title = `${name} · LiDAR-Viewer`;
+    document.title = t("document.datasetTitle", { name });
     const brandName = document.querySelector(".brand-copy strong");
     if (brandName) brandName.textContent = name;
     const brandSubtitle = document.querySelector(".brand-copy span");
     if (brandSubtitle) {
-      brandSubtitle.textContent = sourceLabel ? `${sourceLabel} · Punktwolke` : "LiDAR-Punktwolke";
+      brandSubtitle.textContent = sourceLabel
+        ? t("brand.pointCloudWithSource", { source: sourceLabel })
+        : t("brand.pointCloud");
     }
     const infoTitle = byId("info-title");
     if (infoTitle) infoTitle.textContent = name;
@@ -195,11 +230,79 @@
     picker.classList.toggle("hidden", manifest.scans.length < 2);
   }
 
-  function setStatus(message, tone = "ready") {
+  function renderStatus() {
     const status = byId("viewer-status");
-    byId("viewer-status-text").textContent = message;
+    if (!status) return;
+    byId("viewer-status-text").textContent = t(
+      state.statusView.key,
+      localisedValues(state.statusView.values),
+    );
     status.classList.remove("ready", "action", "error");
-    status.classList.add(tone);
+    status.classList.add(state.statusView.tone);
+  }
+
+  function setStatus(key, tone = "ready", values = {}) {
+    state.statusView = Object.freeze({ key, tone, values: Object.freeze({ ...values }) });
+    renderStatus();
+  }
+
+  function renderLoading() {
+    if (!byId("loading-title")) return;
+    const values = localisedValues(state.loadingView.values);
+    byId("loading-title").textContent = t(state.loadingView.titleKey, values);
+    byId("loading-message").textContent = t(state.loadingView.messageKey, values);
+  }
+
+  function setLoading(titleKey, messageKey, values = {}) {
+    state.loadingView = Object.freeze({
+      titleKey,
+      messageKey,
+      values: Object.freeze({ ...values }),
+    });
+    renderLoading();
+  }
+
+  function labelSceneObject(object, translationKey) {
+    if (!object) return object;
+    object.__lidarViewerTranslationKey = translationKey;
+    object.name = t(translationKey);
+    return object;
+  }
+
+  function translateSceneObjects() {
+    if (!state.viewer || !state.viewer.scene) return;
+    const collections = [
+      state.viewer.scene.measurements,
+      state.viewer.scene.profiles,
+      state.viewer.scene.volumes,
+    ];
+    collections.forEach((collection) => {
+      (collection || []).forEach((object) => {
+        if (object.__lidarViewerTranslationKey) {
+          object.name = t(object.__lidarViewerTranslationKey);
+        }
+      });
+    });
+  }
+
+  function refreshLanguage() {
+    const name = state.dataset ? state.dataset.label : viewerName();
+    const sourceLabel = state.dataset ? state.dataset.source : null;
+    applyDatasetName(name, sourceLabel);
+    if (state.viewer) {
+      state.viewer.setLanguage(i18n.language);
+      state.viewer.setDescription(t("viewer.description"));
+    }
+    if (state.pointcloud && state.dataset && state.source) {
+      populateDatasetInfo(null, {
+        mode: state.source.mode,
+        scan: state.dataset,
+      }, state.pointcloud);
+    }
+    applyQuality(state.qualityMode);
+    translateSceneObjects();
+    renderStatus();
+    renderLoading();
   }
 
   function openDialog(dialog) {
@@ -266,70 +369,73 @@
 
     const viewer = state.viewer;
     let object;
-    let instruction;
+    let instructionKey;
 
     switch (toolName) {
       case "point":
-        object = viewer.measuringTool.startInsertion({
+        object = labelSceneObject(viewer.measuringTool.startInsertion({
           showDistances: false,
           showAngles: false,
           showCoordinates: true,
           showArea: false,
           closed: true,
           maxMarkers: 1,
-          name: "Punkt",
-        });
-        instruction = "Punkt: Position in der Punktwolke anklicken.";
+          name: t("tool.point"),
+        }), "tool.point");
+        instructionKey = "measurement.pointInstruction";
         break;
 
       case "distance":
-        object = viewer.measuringTool.startInsertion({
+        object = labelSceneObject(viewer.measuringTool.startInsertion({
           showDistances: true,
           showArea: false,
           closed: false,
-          name: "Strecke",
-        });
-        instruction = "Strecke: Punkte anklicken, mit Rechtsklick abschließen.";
+          name: t("tool.distance"),
+        }), "tool.distance");
+        instructionKey = "measurement.distanceInstruction";
         break;
 
       case "height":
-        object = viewer.measuringTool.startInsertion({
+        object = labelSceneObject(viewer.measuringTool.startInsertion({
           showDistances: false,
           showHeight: true,
           showArea: false,
           closed: false,
           maxMarkers: 2,
-          name: "Höhe",
-        });
-        instruction = "Höhe: unteren und oberen Bezugspunkt anklicken.";
+          name: t("tool.height"),
+        }), "tool.height");
+        instructionKey = "measurement.heightInstruction";
         break;
 
       case "area":
-        object = viewer.measuringTool.startInsertion({
+        object = labelSceneObject(viewer.measuringTool.startInsertion({
           showDistances: true,
           showArea: true,
           closed: true,
-          name: "Fläche",
-        });
-        instruction = "Fläche: Eckpunkte anklicken, mit Rechtsklick abschließen.";
+          name: t("tool.area"),
+        }), "tool.area");
+        instructionKey = "measurement.areaInstruction";
         break;
 
       case "angle":
-        object = viewer.measuringTool.startInsertion({
+        object = labelSceneObject(viewer.measuringTool.startInsertion({
           showDistances: false,
           showAngles: true,
           showArea: false,
           closed: true,
           maxMarkers: 3,
-          name: "Winkel",
-        });
-        instruction = "Winkel: drei Punkte anklicken; der zweite Punkt ist der Scheitel.";
+          name: t("tool.angle"),
+        }), "tool.angle");
+        instructionKey = "measurement.angleInstruction";
         break;
 
       case "profile": {
-        const profile = viewer.profileTool.startInsertion({ name: "Profil" });
+        const profile = labelSceneObject(
+          viewer.profileTool.startInsertion({ name: t("tool.profile") }),
+          "tool.profile",
+        );
         object = profile;
-        instruction = "Profil: mindestens zwei Punkte setzen und mit Rechtsklick abschließen.";
+        instructionKey = "measurement.profileInstruction";
 
         const openFinishedProfile = (event) => {
           if (event.button !== 2) return;
@@ -337,7 +443,7 @@
             if (profile.points.length >= 2 && viewer.profileWindow && viewer.profileWindowController) {
               viewer.profileWindow.show();
               viewer.profileWindowController.setProfile(profile);
-              setStatus("2D-Profil geöffnet · Export als CSV oder LAS im Profilfenster", "ready");
+              setStatus("measurement.profileOpened", "ready");
             }
           }, 0);
           viewer.renderer.domElement.removeEventListener("mouseup", openFinishedProfile);
@@ -349,8 +455,11 @@
       case "clip":
         viewer.setClipTask(Potree.ClipTask.SHOW_INSIDE);
         viewer.setClipMethod(Potree.ClipMethod.INSIDE_ANY);
-        object = viewer.volumeTool.startInsertion({ clip: true, name: "Schnittbox" });
-        instruction = "Schnittbox platzieren; danach mit den Griffen verschieben, drehen und skalieren.";
+        object = labelSceneObject(
+          viewer.volumeTool.startInsertion({ clip: true, name: t("measurement.clipName") }),
+          "measurement.clipName",
+        );
+        instructionKey = "measurement.clipInstruction";
         break;
 
       default:
@@ -358,7 +467,7 @@
     }
 
     markActiveTool(toolName);
-    setStatus(instruction, "action");
+    setStatus(instructionKey, "action");
     return object;
   }
 
@@ -367,7 +476,7 @@
     state.viewer.dispatchEvent({ type: "cancel_insertions" });
     clearActiveTool();
     state.viewer.fitToScreen(0.85, 350);
-    setStatus("Gesamter Scan in die Ansicht eingepasst", "ready");
+    setStatus("status.fit", "ready");
   }
 
   function topView() {
@@ -375,7 +484,7 @@
     state.viewer.dispatchEvent({ type: "cancel_insertions" });
     clearActiveTool();
     state.viewer.setTopView();
-    setStatus("Draufsicht aktiv", "ready");
+    setStatus("status.top", "ready");
   }
 
   function resetSession() {
@@ -391,7 +500,7 @@
     clearActiveTool();
     viewer.fitToScreen(0.85, 350);
     closeDialog(byId("reset-dialog"));
-    setStatus("Auswertungen entfernt · Scan unverändert", "ready");
+    setStatus("status.reset", "ready");
   }
 
   function toggleSidebar() {
@@ -430,67 +539,68 @@
     const rawAttributes = metadata && Array.isArray(metadata.attributes)
       ? metadata.attributes.map((attribute) => attribute.name)
       : (Array.isArray(configured.attributes) ? configured.attributes : []);
-    const attributes = rawAttributes.map((name) => name === "rgb" ? "RGB-Farbe" : name);
+    const attributes = rawAttributes.map((name) => name === "rgb" ? t("attribute.rgb") : name);
     byId("info-attributes").textContent = attributes.join(", ") || "–";
     byId("info-format").textContent = configured.webFormat || "COPC 1.0 · LAZ";
-    byId("info-source").textContent = configured.source || "LiDAR-Aufnahme";
+    byId("info-source").textContent = configured.source || t("dataset.sourceFallback");
     byId("info-access").textContent = source.mode === "draft"
-      ? "Geschützter Zenodo-Entwurf"
-      : "Geschützte Zenodo-Veröffentlichung";
+      ? t("dataset.accessDraft")
+      : t("dataset.accessPublished");
     const coordinates = byId("info-coordinates");
-    if (coordinates) coordinates.textContent = `Lokal, ${configured.units || "m"} (kein CRS)`;
+    if (coordinates) {
+      coordinates.textContent = t("dataset.coordinates", { units: configured.units || "m" });
+    }
   }
 
-  function showFatal(title, message, retry = true) {
+  function showFatal(titleKey, messageKey, retry = true, values = {}) {
     const overlay = byId("loading-overlay");
     overlay.classList.remove("dismissed");
     byId("loading-spinner").classList.add("hidden");
-    byId("loading-title").textContent = title;
-    byId("loading-message").textContent = message;
+    setLoading(titleKey, messageKey, values);
     byId("loading-retry").classList.toggle("hidden", !retry);
-    setStatus(title, "error");
+    setStatus(titleKey, "error", values);
   }
 
   function describeFailure(error) {
     const code = error && error.code;
     if (code === "missing_access" || code === "invalid_access") {
       return {
-        title: "Persönlicher Freigabelink erforderlich",
-        message: "Diese Seite enthält selbst keine Scandaten. Öffnen Sie den vollständigen Link, den Sie persönlich erhalten haben.",
+        titleKey: "error.missingAccessTitle",
+        messageKey: "error.missingAccessMessage",
         retry: false,
       };
     }
     if (code === "access_denied") {
       return {
-        title: "Freigabelink nicht mehr gültig",
-        message: "Der Link ist abgelaufen, wurde widerrufen oder passt nicht zu diesem Zenodo-Datensatz.",
+        titleKey: "error.accessDeniedTitle",
+        messageKey: "error.accessDeniedMessage",
         retry: false,
       };
     }
     if (["range_failed", "range_header", "range_length"].includes(code)) {
       return {
-        title: "Zenodo-Streaming nicht verfügbar",
-        message: "Der Server lieferte nicht den benötigten Bytebereich. Es wurde vorsorglich keine vollständige Scandatei geladen.",
+        titleKey: "error.rangeTitle",
+        messageKey: "error.rangeMessage",
         retry: true,
       };
     }
     if (code === "rate_limit") {
       return {
-        title: "Zenodo ist vorübergehend ausgelastet",
-        message: "Bitte warten Sie kurz und versuchen Sie es anschließend erneut.",
+        titleKey: "error.rateLimitTitle",
+        messageKey: "error.rateLimitMessage",
         retry: true,
       };
     }
     if (code === "invalid_manifest") {
       return {
-        title: "Viewer-Manifest ist ungültig",
-        message: "Die geschützte Dateiliste entspricht nicht dem erwarteten Format.",
+        titleKey: "error.manifestTitle",
+        messageKey: "error.manifestMessage",
         retry: false,
       };
     }
     return {
-      title: "Punktwolke konnte nicht geladen werden",
-      message: "Prüfen Sie die Internetverbindung und öffnen Sie den persönlichen Freigabelink erneut.",
+      titleKey: "error.genericTitle",
+      messageKey: "error.genericMessage",
       retry: true,
     };
   }
@@ -501,13 +611,13 @@
       state.ready = false;
       disableControls();
       const detail = event.detail || {};
-      console.error("Punktwolken-Streamingfehler", {
+      console.error("Point-cloud streaming error", {
         name: detail.name || "Error",
         code: detail.code || "pointcloud_load",
         status: detail.status || null,
       });
       const failure = describeFailure(detail);
-      showFatal(failure.title, failure.message, failure.retry);
+      showFatal(failure.titleKey, failure.messageKey, failure.retry);
     });
 
     toolButtons().forEach((button) => {
@@ -528,12 +638,17 @@
     byId("quality-selector").addEventListener("change", (event) => {
       applyQuality(event.target.value, { persist: true, announce: true });
     });
+    document.querySelectorAll("[data-language-selector]").forEach((selector) => {
+      selector.addEventListener("change", (event) => {
+        i18n.setLanguage(event.target.value);
+      });
+    });
+    window.addEventListener("lidar-language-changed", refreshLanguage);
     byId("scan-selector").addEventListener("change", (event) => {
       if (!window.ZenodoViewerAccess.selectScan(event.target.value)) return;
       byId("loading-overlay").classList.remove("dismissed");
       byId("loading-spinner").classList.remove("hidden");
-      byId("loading-title").textContent = "Scan wird gewechselt";
-      byId("loading-message").textContent = "Die geschützte Punktwolke wird neu geladen …";
+      setLoading("loading.switchTitle", "loading.switchMessage");
       window.location.reload();
     });
     byId("clear-access").addEventListener("click", () => {
@@ -559,32 +674,39 @@
       }
       if (state.viewer) state.viewer.dispatchEvent({ type: "cancel_insertions" });
       clearActiveTool();
-      if (state.ready) setStatus("Werkzeug abgebrochen", "ready");
+      if (state.ready) setStatus("status.cancelled", "ready");
     });
   }
 
   async function initialise() {
-    applyDatasetName(CONFIG.name);
+    if (!i18n) {
+      byId("loading-spinner").classList.add("hidden");
+      byId("loading-title").textContent = "Viewer could not start";
+      byId("loading-message").textContent = "The local interface-language component is missing.";
+      return;
+    }
+
+    i18n.apply();
+    applyDatasetName(viewerName());
+    setStatus("status.loading", "ready");
+    setLoading("loading.prepareTitle", "loading.prepareMessage");
     wireInterface();
     state.compactDevice = window.matchMedia("(max-width: 760px)").matches;
     state.qualityMode = readQualityPreference();
     applyQuality(state.qualityMode);
 
     if (window.location.protocol === "file:") {
-      showFatal(
-        "Lokaler Webserver erforderlich",
-        "Bitte diese Seite über einen lokalen Webserver oder GitHub Pages öffnen. Beispiel im Projektstamm: py scripts\\serve_viewer.py",
-      );
+      showFatal("error.localServerTitle", "error.localServerMessage");
       return;
     }
 
     if (!window.Potree || !window.$ || !window.ZenodoViewerAccess) {
-      showFatal("Viewer konnte nicht starten", "Eine lokale Potree-Abhängigkeit fehlt oder konnte nicht geladen werden.");
+      showFatal("error.startTitle", "error.startMessage");
       return;
     }
 
     try {
-      byId("loading-message").textContent = "Geschützte Dateiliste wird von Zenodo geladen …";
+      setLoading("loading.prepareTitle", "loading.fileList");
       const source = await resolveDataSource();
 
       state.catalog = source.manifest;
@@ -599,7 +721,7 @@
       });
       applyDatasetName(source.name, source.scan.source);
       populateScanSelector(source.manifest, source.scan);
-      byId("loading-message").textContent = "Metadaten und erste Punkte werden bereichsweise geladen …";
+      setLoading("loading.prepareTitle", "loading.byteRanges");
 
       const viewer = new Potree.Viewer(byId("potree_render_area"));
       state.viewer = viewer;
@@ -611,11 +733,11 @@
       applyQuality(state.qualityMode);
       viewer.setBackground("gradient");
       viewer.setLengthUnit("m");
-      viewer.setDescription("LiDAR-Punktwolke · lokale Koordinaten");
+      viewer.setDescription(t("viewer.description"));
 
       const guiReady = new Promise((resolve) => {
         viewer.loadGUI(() => {
-          viewer.setLanguage("de");
+          viewer.setLanguage(i18n.language);
           resolve();
         });
       });
@@ -626,7 +748,7 @@
       const [metadata, , loaded] = await withTimeout(
         Promise.all([metadataReady, guiReady, pointCloudReady]),
         CONFIG.loadTimeoutMs,
-        "Zeitüberschreitung beim Laden der Punktwolke",
+        "Point-cloud loading timed out.",
       );
 
       state.metadata = metadata;
@@ -651,7 +773,9 @@
         get metadata() { return state.metadata || state.dataset; },
         get source() { return state.source; },
         get qualityMode() { return state.qualityMode; },
+        get language() { return i18n.language; },
         startTool: startMeasurement,
+        setLanguage: (language) => i18n.setLanguage(language),
         setQuality: (mode) => applyQuality(mode, { persist: true, announce: true }),
         fitView,
         topView,
@@ -664,20 +788,23 @@
         ? source.scan.points
         : (geometry && geometry.copc && geometry.copc.header
           ? geometry.copc.header.pointCount : null);
-      const countLabel = Number.isFinite(pointCount) ? `${formatInteger(pointCount)} Punkte · ` : "";
       setStatus(
-        `Bereit · ${countLabel}COPC · Qualität ${state.qualityProfile.label} · geschützter Zenodo-Zugriff`,
+        Number.isFinite(pointCount) ? "status.readyWithPoints" : "status.ready",
         "ready",
+        {
+          countNumber: pointCount,
+          qualityMode: state.qualityMode,
+        },
       );
       byId("loading-overlay").classList.add("dismissed");
     } catch (error) {
-      console.error("Viewer-Fehler", {
+      console.error("Viewer error", {
         name: error && error.name ? error.name : "Error",
         code: error && error.code ? error.code : "unknown",
         status: error && error.status ? error.status : null,
       });
       const failure = describeFailure(error);
-      showFatal(failure.title, failure.message, failure.retry);
+      showFatal(failure.titleKey, failure.messageKey, failure.retry);
     }
   }
 

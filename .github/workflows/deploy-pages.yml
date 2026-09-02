@@ -1,22 +1,46 @@
-name: Deploy protected LiDAR viewer
+name: Test and deploy protected LiDAR viewer
 
 on:
   push:
     branches: [main]
+  pull_request:
   workflow_dispatch:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
-  group: pages
+  group: lidar-viewer-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  test-and-deploy:
+  test:
     runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Check JavaScript
+        run: |
+          node --check viewer/zenodo-access.js
+          node --check viewer/config.js
+          node --check viewer/i18n.js
+          node --check viewer/app.js
+
+      - name: Run JavaScript tests
+        run: node --test tests/test_i18n.mjs tests/test_zenodo_access.mjs
+
+      - name: Run Python tests
+        run: python -m unittest -v tests.test_static_and_server
+
+  deploy:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -26,13 +50,6 @@ jobs:
 
       - name: Configure Pages
         uses: actions/configure-pages@v5
-
-      - name: Check JavaScript
-        run: |
-          node --check viewer/zenodo-access.js
-          node --check viewer/app.js
-          node --test tests/test_zenodo_access.mjs
-          python -m unittest -v tests.test_static_and_server
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v4
