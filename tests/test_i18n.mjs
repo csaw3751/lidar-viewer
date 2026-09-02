@@ -265,6 +265,32 @@ test("translates real Potree punctuation, generated messages, and image tooltips
   assert.equal(copy.getAttribute("title"), "copy");
 });
 
+test("labels Potree's enhanced area tool as a 3D measurement in both languages", () => {
+  const areaValue = new FakeElement("SPAN", {}, "Area:");
+  const areaTool = new FakeElement("IMG", {
+    "data-i18n": "[title]tt.area_measurement",
+    title: "Area measurement",
+  });
+  const { i18n } = loadI18n({ languages: ["en-GB"] });
+
+  i18n.translatePotree(areaValue);
+  i18n.translatePotree(areaTool);
+  assert.equal(areaValue.textContent, "3D area:");
+  assert.equal(areaTool.getAttribute("title"), "3D area measurement");
+
+  i18n.setLanguage("de", { persist: false });
+  i18n.translatePotree(areaValue);
+  i18n.translatePotree(areaTool);
+  assert.equal(areaValue.textContent, "3D-Fläche:");
+  assert.equal(areaTool.getAttribute("title"), "3D-Flächenmessung");
+
+  i18n.setLanguage("en", { persist: false });
+  i18n.translatePotree(areaValue);
+  i18n.translatePotree(areaTool);
+  assert.equal(areaValue.textContent, "3D area:");
+  assert.equal(areaTool.getAttribute("title"), "3D area measurement");
+});
+
 test("Potree MutationObserver callbacks do not repeat same-value attribute writes", () => {
   const titled = new FakeElement("IMG", {
     id: "closeProfileContainer",

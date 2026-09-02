@@ -120,18 +120,24 @@ Die Auswahl **Auto / Hoch / Maximum** wirkt sofort und verändert weder COPC-Dat
 
 Alle Stufen verwenden adaptive, runde Punkte und eine zunehmend feinere Potree-LOD-Schwelle. Höhere Stufen benötigen mehr Zenodo-Anfragen, Grafikleistung und Arbeitsspeicher. Nur die Qualitätswahl wird unter ihrem eigenen Schlüssel in `localStorage` gespeichert; der Zenodo-Zugang bleibt davon getrennt und ausschließlich tab-lokal in `sessionStorage`.
 
+## Messflächen
+
+Das Werkzeug **3D-Fläche** wertet ein mit mindestens drei Eckpunkten abgeschlossenes Polygon auf zwei Arten aus: Die **3D-Fläche (Vektorfläche)** ist der Betrag der Vektorfläche aus den geordneten 3D-Eckpunkten; die **XY-Projektion** ist die Fläche desselben Polygons in der horizontalen XY-Ebene. Für einfache planare Polygone ist die Vektorfläche unabhängig von ihrer räumlichen Orientierung, Umlaufrichtung und Konkavität exakt.
+
+Überschreitet die Ebenendicke den größeren Wert aus `0,02 m` und `1 %` der räumlichen Polygonspanne, erscheint die Warnung **nicht planar**. Der 3D-Wert ist dann nur eine planare Näherung, weil die Punkte keine eindeutige reale Oberfläche festlegen. Die Eckpunkte müssen als einfaches Polygon der Reihe nach entlang des Randes gesetzt werden. Selbstschneidende Polygone werden nicht unterstützt; weniger als drei, nicht endliche, kollineare oder anderweitig degenerierte Punkte liefern keine bestimmbare Fläche.
+
 ## Auf GitHub Pages bereitstellen
 
 1. Inhalt dieses Verzeichnisses in ein eigenes GitHub-Repository übernehmen.
 2. Auf GitHub **Settings → Pages → Build and deployment → Source → GitHub Actions** auswählen.
-3. Den Lauf **Deploy protected LiDAR viewer** unter **Actions** abwarten.
+3. Den Lauf **Test and deploy LiDAR viewer** unter **Actions** abwarten. Der Job **Tests** prüft JavaScript, die browserunabhängigen Modultests und die Python-Tests. Erst danach veröffentlicht der Job **Deploy GitHub Pages** den Viewer.
 4. Die angezeigte Pages-Adresse öffnen. Sie hat typischerweise dieses Schema:
 
 ```text
 https://USERNAME.github.io/REPOSITORY/
 ```
 
-Der mitgelieferte Workflow veröffentlicht ausschließlich den Ordner `viewer/`. Tests, Skripte und Dokumentation werden nicht als Teil der Website ausgeliefert.
+Der mitgelieferte Workflow wird für Pull Requests gegen `main`, Pushes auf `main` und manuelle Starts ausgeführt. In Pull Requests läuft nur **Tests**, sodass die Prüfung keine Pages-Bereitstellung auslösen kann. **Deploy GitHub Pages** ist von einem erfolgreichen Testjob abhängig und läuft ausschließlich außerhalb von Pull Requests auf `main`. In Branchschutzregeln sollte deshalb nur **Tests** als erforderliche Prüfung eingetragen werden. Veröffentlicht wird nur der Ordner `viewer/`; Tests, Skripte und Dokumentation werden nicht als Teil der Website ausgeliefert.
 
 GitHub Pages selbst ist in diesem Aufbau öffentlich erreichbar. Das ist beabsichtigt, weil die Seite nur die Viewer-Hülle enthält. GitHub weist darauf hin, dass eine Pages-Site auch bei einem privaten Repository öffentlich sein kann. Auf GitHub Free steht Pages regulär für öffentliche Repositorys zur Verfügung; private Repositorys benötigen einen passenden Tarif. Die Scandaten bleiben unabhängig von Repository- und Pages-Sichtbarkeit in Zenodo eingeschränkt.
 
@@ -178,12 +184,13 @@ Es werden nur Node.js und Python benötigt. Aus dem Repository-Stamm unter Windo
 node --check .\viewer\zenodo-access.js
 node --check .\viewer\i18n.js
 node --check .\viewer\config.js
+node --check .\viewer\area-measurement.js
 node --check .\viewer\app.js
-node --test .\tests\test_i18n.mjs .\tests\test_zenodo_access.mjs
+node --test tests/*.mjs
 py -3.12 -m unittest discover -s tests -p "test_*.py" -v
 ```
 
-Die Tests prüfen unter anderem die sofortige Fragmentbereinigung, Draft-/Published-Endpunkte, Mehrscan-Auswahl, Manifestvalidierung, Traversal-Schutz, exakte Bytebereiche, Deduplizierung, Abbruch bei `200`, Darstellungsstufen, Gleichstand der Übersetzungskataloge und Fallback-Verhalten, den live ausgeführten Sprachwechsel und die Speichertrennung, fehlende Scandateien im Webordner sowie den lokalen Range-Server.
+Die Tests prüfen unter anderem die Vektorfläche und XY-Projektion horizontaler, geneigter und vertikaler sowie konkaver Polygone, unterschiedliche Umlaufrichtungen, den Grenzwert der Planaritätsprüfung und degenerierte Eingaben. Zusätzlich decken sie die sofortige Fragmentbereinigung, Draft-/Published-Endpunkte, Mehrscan-Auswahl, Manifestvalidierung, Traversal-Schutz, exakte Bytebereiche, Deduplizierung, Abbruch bei `200`, Darstellungsstufen, Gleichstand der Übersetzungskataloge und Fallback-Verhalten, den live ausgeführten Sprachwechsel und die Speichertrennung, fehlende Scandateien im Webordner sowie den lokalen Range-Server ab.
 
 ## Verzeichnisstruktur
 
@@ -202,6 +209,7 @@ Die Tests prüfen unter anderem die sofortige Fragmentbereinigung, Draft-/Publis
 │   ├── requirements.txt
 │   └── serve_viewer.py
 ├── tests/
+│   ├── test_area_measurement.mjs
 │   ├── test_i18n.mjs
 │   ├── test_static_and_server.py
 │   └── test_zenodo_access.mjs
@@ -209,6 +217,7 @@ Die Tests prüfen unter anderem die sofortige Fragmentbereinigung, Draft-/Publis
     ├── .nojekyll
     ├── index.html
     ├── config.js
+    ├── area-measurement.js
     ├── zenodo-access.js
     ├── i18n.js
     ├── app.js

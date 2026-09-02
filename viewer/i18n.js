@@ -41,8 +41,8 @@
     "tools.distanceTitle": "Measure a distance or polyline",
     "tools.height": "Height",
     "tools.heightTitle": "Measure a vertical height difference",
-    "tools.area": "Area",
-    "tools.areaTitle": "Measure a polygon area",
+    "tools.area": "3D area",
+    "tools.areaTitle": "Measure an orientation-independent 3D polygon area and show its XY projection",
     "tools.angle": "Angle",
     "tools.angleTitle": "Measure an angle from three points",
     "tools.profile": "Profile",
@@ -59,7 +59,10 @@
     "status.pointInstruction": "Point: click a position in the point cloud.",
     "status.distanceInstruction": "Distance: click points; right-click to finish.",
     "status.heightInstruction": "Height: click the lower and upper reference points.",
-    "status.areaInstruction": "Area: click corner points; right-click to finish.",
+    "status.areaInstruction": "3D area: click corner points; right-click to finish. The label also shows the XY projection.",
+    "status.areaMeasured": "3D area {{area}} · XY projection {{projected}}",
+    "status.areaNonPlanar": "⚠ Points are not coplanar (maximum deviation {{deviation}}) · 3D area {{area}} is a planar approximation · XY projection {{projected}}",
+    "status.areaInvalid": "3D area unavailable · place at least three non-collinear points",
     "status.angleInstruction": "Angle: click three points; the second point is the vertex.",
     "status.profileInstruction": "Profile: add at least two points; right-click to finish.",
     "status.profileOpened": "2D profile opened · export CSV or LAS in the profile window",
@@ -87,7 +90,8 @@
     "help.mouseWheel": "Mouse wheel",
     "help.zoom": "Zoom",
     "help.measureTitle": "Measure and analyse",
-    "help.measureText": "Choose a tool and place points with the left mouse button. Right-click to finish a polyline, area, or profile.",
+    "help.measureText": "Choose a tool and place points with the left mouse button. Right-click to finish a polyline, 3D area, or profile.",
+    "help.areaText": "The 3D area uses all coordinates and works on floors, roofs, and walls; XY is its horizontal projection. Non-coplanar points trigger a warning because the 3D value is then only a planar approximation. Use a simple ordered polygon without self-intersections.",
     "help.profileText": "Completing a profile opens the 2D analysis, which also provides CSV and LAS exports.",
     "help.clipTitle": "Clipping box",
     "help.clipText": "Clip places a box and shows only the points inside it. Use the coloured handles to move, rotate, and scale the box.",
@@ -132,7 +136,11 @@
     "measurement.point": "Point",
     "measurement.distance": "Distance",
     "measurement.height": "Height",
-    "measurement.area": "Area",
+    "measurement.area": "3D area",
+    "area.label3d": "3D {{area}}",
+    "area.labelProjectedXY": "XY {{area}}",
+    "area.nonPlanarWarning": "⚠ approx.",
+    "area.invalidWarning": "3D area unavailable",
     "measurement.angle": "Angle",
     "measurement.circle": "Circle",
     "measurement.azimuth": "Azimuth",
@@ -201,8 +209,8 @@
     "tools.distanceTitle": "Strecke oder Linienzug messen",
     "tools.height": "Höhe",
     "tools.heightTitle": "Vertikalen Höhenunterschied messen",
-    "tools.area": "Fläche",
-    "tools.areaTitle": "Polygonfläche messen",
+    "tools.area": "3D-Fläche",
+    "tools.areaTitle": "Orientierungsunabhängige 3D-Polygonfläche messen und ihre XY-Projektion anzeigen",
     "tools.angle": "Winkel",
     "tools.angleTitle": "Winkel aus drei Punkten messen",
     "tools.profile": "Profil",
@@ -219,7 +227,10 @@
     "status.pointInstruction": "Punkt: Position in der Punktwolke anklicken.",
     "status.distanceInstruction": "Strecke: Punkte anklicken, mit Rechtsklick abschließen.",
     "status.heightInstruction": "Höhe: unteren und oberen Bezugspunkt anklicken.",
-    "status.areaInstruction": "Fläche: Eckpunkte anklicken, mit Rechtsklick abschließen.",
+    "status.areaInstruction": "3D-Fläche: Eckpunkte anklicken und mit Rechtsklick abschließen. Das Label zeigt zusätzlich die XY-Projektion.",
+    "status.areaMeasured": "3D-Fläche {{area}} · XY-Projektion {{projected}}",
+    "status.areaNonPlanar": "⚠ Punkte liegen nicht in einer Ebene (maximale Abweichung {{deviation}}) · 3D-Fläche {{area}} ist eine planare Näherung · XY-Projektion {{projected}}",
+    "status.areaInvalid": "3D-Fläche nicht verfügbar · mindestens drei nicht kollineare Punkte setzen",
     "status.angleInstruction": "Winkel: drei Punkte anklicken; der zweite Punkt ist der Scheitel.",
     "status.profileInstruction": "Profil: mindestens zwei Punkte setzen und mit Rechtsklick abschließen.",
     "status.profileOpened": "2D-Profil geöffnet · Export als CSV oder LAS im Profilfenster",
@@ -247,7 +258,8 @@
     "help.mouseWheel": "Mausrad",
     "help.zoom": "Zoomen",
     "help.measureTitle": "Messen und auswerten",
-    "help.measureText": "Werkzeug wählen und Punkte mit der linken Maustaste setzen. Mit der rechten Maustaste wird ein Linienzug, eine Fläche oder ein Profil abgeschlossen.",
+    "help.measureText": "Werkzeug wählen und Punkte mit der linken Maustaste setzen. Mit der rechten Maustaste wird ein Linienzug, eine 3D-Fläche oder ein Profil abgeschlossen.",
+    "help.areaText": "Die 3D-Fläche verwendet alle Koordinaten und funktioniert für Böden, Dächer und Wände; XY ist ihre horizontale Projektion. Bei nicht koplanaren Punkten erscheint eine Warnung, weil der 3D-Wert dann nur eine planare Näherung ist. Verwenden Sie ein einfaches, geordnetes Polygon ohne Selbstüberschneidungen.",
     "help.profileText": "Beim Profil öffnet sich anschließend die 2D-Auswertung. Dort sind auch CSV- und LAS-Export verfügbar.",
     "help.clipTitle": "Schnittbox",
     "help.clipText": "„Schnitt“ setzt eine Box und zeigt nur Punkte innerhalb der Box. Die farbigen Griffe dienen zum Verschieben, Drehen und Skalieren.",
@@ -292,7 +304,11 @@
     "measurement.point": "Punkt",
     "measurement.distance": "Strecke",
     "measurement.height": "Höhe",
-    "measurement.area": "Fläche",
+    "measurement.area": "3D-Fläche",
+    "area.label3d": "3D {{area}}",
+    "area.labelProjectedXY": "XY {{area}}",
+    "area.nonPlanarWarning": "⚠ Näherung",
+    "area.invalidWarning": "3D-Fläche nicht verfügbar",
     "measurement.angle": "Winkel",
     "measurement.circle": "Kreis",
     "measurement.azimuth": "Azimut",
@@ -418,7 +434,7 @@
     "Distance measurement": "Streckenmessung",
     "Height measurement": "Höhenmessung",
     "Circle measurement": "Kreismessung",
-    "Area measurement": "Flächenmessung",
+    "Area measurement": "3D-Flächenmessung",
     "Volume measurement": "Volumenmessung",
     "Height profile": "Höhenprofil",
     "Annotation": "Anmerkung",
@@ -456,7 +472,7 @@
     "Height": "Höhe",
     "Circle": "Kreis",
     "Azimuth": "Azimut",
-    "Area": "Fläche",
+    "Area": "3D-Fläche",
     "Volume": "Volumen",
     "Length": "Länge",
     "Width": "Breite",
@@ -497,7 +513,7 @@
     "Save CSV(2D)": "CSV speichern (2D)",
     "Distances:": "Strecken:",
     "Total:": "Gesamt:",
-    "Area:": "Fläche:",
+    "Area:": "3D-Fläche:",
     "Center:": "Mittelpunkt:",
     "Circumference:": "Umfang:",
     "Height:": "Höhe:",
@@ -725,6 +741,12 @@
     potree_download_las_icon: "Download LAS",
   });
 
+  const POTREE_ENGLISH_OVERRIDES = Object.freeze({
+    "Area measurement": "3D area measurement",
+    "Area": "3D area",
+    "Area:": "3D area:",
+  });
+
   const POTREE_CANONICAL = new Map();
   Object.entries(POTREE_GERMAN).forEach(([english, german]) => {
     POTREE_CANONICAL.set(english, english);
@@ -732,6 +754,9 @@
   });
   Object.entries(POTREE_ALIASES).forEach(([alias, english]) => {
     POTREE_CANONICAL.set(alias, english);
+  });
+  Object.entries(POTREE_ENGLISH_OVERRIDES).forEach(([english, rendered]) => {
+    POTREE_CANONICAL.set(rendered, english);
   });
 
   const dynamicRangeIds = new Set([
@@ -898,7 +923,7 @@
   }
 
   function localisePotreeCanonical(canonical, element) {
-    if (currentLanguage === "en") return canonical;
+    if (currentLanguage === "en") return POTREE_ENGLISH_OVERRIDES[canonical] || canonical;
 
     if (element && dynamicRangeIds.has(element.id)) {
       const rangeMatch = /^(.*?)\s+to\s+(.*?)$/.exec(canonical);
@@ -1024,7 +1049,9 @@
       if (english) {
         setAttributeIfChanged(element, "data-lidar-potree-i18n", vendorBinding);
         if (element.hasAttribute("data-i18n")) element.removeAttribute("data-i18n");
-        const translated = currentLanguage === "de" ? (POTREE_GERMAN[english] || english) : english;
+        const translated = currentLanguage === "de"
+          ? (POTREE_GERMAN[english] || english)
+          : (POTREE_ENGLISH_OVERRIDES[english] || english);
         if (titleBinding) {
           setAttributeIfChanged(element, "title", translated);
           rememberPotreeRendering(element, "title", english, translated);

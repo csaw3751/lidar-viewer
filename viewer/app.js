@@ -3,6 +3,7 @@
 
   const QUALITY_STORAGE_KEY = "lidar-viewer.render-quality.v1";
   const I18N = window.LidarViewerI18n;
+  const AreaMeasurement = window.LidarViewerAreaMeasurement;
   const CORE_ENGLISH_FALLBACK = Object.freeze({
     "error.startTitle": "Viewer could not start",
     "error.startMessage": "A local viewer dependency is missing or could not be loaded.",
@@ -96,6 +97,9 @@
     }),
     guiReady: false,
     localisedObjects: new Map(),
+    areaMeasurements: new Set(),
+    completedAreaMeasurements: new WeakSet(),
+    statusAreaMeasurement: null,
   };
 
   const byId = (id) => document.getElementById(id);
@@ -129,6 +133,52 @@
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     }).format(value) + " m";
+  }
+
+  function formatArea(value, measurement) {
+    const rawSourceUnits = measurement && measurement.lengthUnit
+      && measurement.lengthUnit.unitspermeter;
+    const rawDisplayUnits = measurement && measurement.lengthUnitDisplay
+      && measurement.lengthUnitDisplay.unitspermeter;
+    const sourceUnitsPerMeter = Number.isFinite(rawSourceUnits) && rawSourceUnits > 0
+      ? rawSourceUnits : 1;
+    const displayUnitsPerMeter = Number.isFinite(rawDisplayUnits) && rawDisplayUnits > 0
+      ? rawDisplayUnits : 1;
+    const unitCode = measurement && measurement.lengthUnitDisplay
+      && measurement.lengthUnitDisplay.code
+      ? measurement.lengthUnitDisplay.code : "m";
+    const converted = value / Math.pow(sourceUnitsPerMeter, 2)
+      * Math.pow(displayUnitsPerMeter, 2);
+    return new Intl.NumberFormat(I18N ? I18N.locale : "en-GB", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(converted) + ` ${unitCode}\u00B2`;
+  }
+
+  function announceAreaMeasurement(measurement) {
+    if (!AreaMeasurement) return;
+    const analysis = AreaMeasurement.analyseMeasurement(measurement);
+    if (!analysis.valid) {
+      setStatus("status.areaInvalid", {}, "warning");
+      state.statusAreaMeasurement = measurement;
+      return;
+    }
+
+    const values = {
+      area: formatArea(analysis.area3d, measurement),
+      projected: formatArea(analysis.areaXY, measurement),
+    };
+    if (analysis.nonPlanar) {
+      values.deviation = AreaMeasurement.formatLength(analysis.maximumDeviation, measurement, {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      });
+      setStatus("status.areaNonPlanar", values, "warning");
+      state.statusAreaMeasurement = measurement;
+      return;
+    }
+    setStatus("status.areaMeasured", values, "ready");
+    state.statusAreaMeasurement = measurement;
   }
 
   function readQualityPreference() {
@@ -259,11 +309,14 @@
       values.quality = qualityLabel();
     }
     byId("viewer-status-text").textContent = t(state.status.key, values);
-    status.classList.remove("ready", "action", "error");
+    status.classList.remove("ready", "action", "warning", "error");
     if (state.status.tone) status.classList.add(state.status.tone);
   }
 
   function setStatus(key, values = {}, tone = "ready") {
+    if (!["status.areaMeasured", "status.areaNonPlanar", "status.areaInvalid"].includes(key)) {
+      state.statusAreaMeasurement = null;
+    }
     state.status = Object.freeze({ key, values: Object.freeze({ ...values }), tone });
     renderStatus();
   }
@@ -358,6 +411,7 @@
 
   function keyForObjectName(name) {
     if (!I18N || typeof name !== "string") return null;
+    if (name === "Area") return "measurement.area";
     return DEFAULT_OBJECT_KEYS.find((key) => (
       name === I18N.catalogs.en[key] || name === I18N.catalogs.de[key]
     )) || null;
@@ -399,16 +453,36 @@
       const object = event[property];
       const key = object && keyForObjectName(object.name);
       if (key) markLocalisedObject(object, key);
+      if (property === "measurement" && object && object.showArea && AreaMeasurement) {
+        if (!state.areaMeasurements.has(object)) {
+          AreaMeasurement.enhance(object);
+          state.areaMeasurements.add(object);
+          object.addEventListener("marker_dropped", () => {
+            if (!state.completedAreaMeasurements.has(object)) return;
+            window.setTimeout(() => announceAreaMeasurement(object), 0);
+          });
+        }
+      }
     };
     viewer.scene.addEventListener("measurement_added", track("measurement"));
     viewer.scene.addEventListener("profile_added", track("profile"));
     viewer.scene.addEventListener("volume_added", track("volume"));
     viewer.scene.addEventListener("polygon_clip_volume_added", track("volume"));
     const untrack = (property) => (event) => state.localisedObjects.delete(event[property]);
-    viewer.scene.addEventListener("measurement_removed", untrack("measurement"));
+    viewer.scene.addEventListener("measurement_removed", (event) => {
+      state.localisedObjects.delete(event.measurement);
+      state.areaMeasurements.delete(event.measurement);
+      if (state.statusAreaMeasurement === event.measurement) {
+        state.statusAreaMeasurement = null;
+      }
+    });
     viewer.scene.addEventListener("profile_removed", untrack("profile"));
     viewer.scene.addEventListener("volume_removed", untrack("volume"));
     viewer.scene.addEventListener("polygon_clip_volume_removed", untrack("volume"));
+
+    viewer.scene.measurements.forEach((measurement) => {
+      track("measurement")({ measurement });
+    });
   }
 
   function startMeasurement(toolName) {
@@ -467,6 +541,21 @@
         });
         markLocalisedObject(object, "measurement.area");
         instruction = "status.areaInstruction";
+        {
+          const showFinishedArea = (event) => {
+            if (event.button !== 2) return;
+            insertionCleanup();
+            state.completedAreaMeasurements.add(object);
+            window.setTimeout(() => announceAreaMeasurement(object), 0);
+          };
+          insertionCleanup = () => {
+            viewer.renderer.domElement.removeEventListener("mouseup", showFinishedArea);
+            if (state.activeInsertionCleanup === insertionCleanup) {
+              state.activeInsertionCleanup = null;
+            }
+          };
+          viewer.renderer.domElement.addEventListener("mouseup", showFinishedArea);
+        }
         break;
 
       case "angle":
@@ -554,6 +643,7 @@
     viewer.setClipMethod(Potree.ClipMethod.INSIDE_ANY);
     if (viewer.profileWindow) viewer.profileWindow.hide();
     state.localisedObjects.clear();
+    state.areaMeasurements.clear();
     clearActiveTool();
     viewer.fitToScreen(0.85, 350);
     closeDialog(byId("reset-dialog"));
@@ -701,6 +791,12 @@
     }
 
     if (state.viewer) state.viewer.setDescription(t("viewer.description"));
+    if (AreaMeasurement) {
+      state.areaMeasurements.forEach((measurement) => AreaMeasurement.refresh(measurement));
+      if (state.statusAreaMeasurement) {
+        announceAreaMeasurement(state.statusAreaMeasurement);
+      }
+    }
     if (state.viewer && state.guiReady) {
       state.viewer.setLanguage(I18N ? I18N.language : "en");
       window.setTimeout(translatePotreeInterface, 0);
@@ -798,7 +894,7 @@
       return;
     }
 
-    if (!window.Potree || !window.$ || !window.ZenodoViewerAccess || !I18N) {
+    if (!window.Potree || !window.$ || !window.ZenodoViewerAccess || !I18N || !AreaMeasurement) {
       showFatal("error.startTitle", "error.startMessage");
       return;
     }

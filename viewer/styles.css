@@ -414,6 +414,11 @@ button:disabled {
   box-shadow: 0 0 0 4px rgba(116, 185, 255, 0.12);
 }
 
+.status-pill.warning .status-dot {
+  background: #ffcc66;
+  box-shadow: 0 0 0 4px rgba(255, 204, 102, 0.12);
+}
+
 .status-pill.error .status-dot {
   background: var(--danger);
   box-shadow: 0 0 0 4px rgba(255, 113, 107, 0.12);
@@ -587,6 +592,15 @@ button:disabled {
 .shortcut-list dd {
   margin: 0;
   color: var(--muted);
+}
+
+.area-help-note {
+  margin: 10px 0 0;
+  padding: 9px 11px;
+  color: #ffe3a3;
+  border-left: 3px solid #ffcc66;
+  border-radius: 3px 8px 8px 3px;
+  background: rgba(255, 204, 102, 0.08);
 }
 
 .note-box {

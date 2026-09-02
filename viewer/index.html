@@ -100,8 +100,9 @@
         <img src="vendor/potree/resources/icons/height.svg" alt=""><span data-lidar-i18n="tools.height">Height</span>
       </button>
       <button class="tool-button" type="button" data-tool="area" disabled
-              title="Measure a polygon area" data-lidar-i18n-title="tools.areaTitle">
-        <img src="vendor/potree/resources/icons/area.svg" alt=""><span data-lidar-i18n="tools.area">Area</span>
+              title="Measure an orientation-independent 3D polygon area and show its XY projection"
+              data-lidar-i18n-title="tools.areaTitle">
+        <img src="vendor/potree/resources/icons/area.svg" alt=""><span data-lidar-i18n="tools.area">3D area</span>
       </button>
       <button class="tool-button" type="button" data-tool="angle" disabled
               title="Measure an angle from three points" data-lidar-i18n-title="tools.angleTitle">
@@ -179,7 +180,8 @@
       </section>
       <section>
         <h3 data-lidar-i18n="help.measureTitle">Measure and analyse</h3>
-        <p data-lidar-i18n="help.measureText">Choose a tool and place points with the left mouse button. Right-click to finish a polyline, area, or profile.</p>
+        <p data-lidar-i18n="help.measureText">Choose a tool and place points with the left mouse button. Right-click to finish a polyline, 3D area, or profile.</p>
+        <p class="area-help-note" data-lidar-i18n="help.areaText">The 3D area uses all coordinates and works on floors, roofs, and walls; XY is its horizontal projection. Non-coplanar points trigger a warning because the 3D value is then only a planar approximation. Use a simple ordered polygon without self-intersections.</p>
         <p data-lidar-i18n="help.profileText">Completing a profile opens the 2D analysis, which also provides CSV and LAS exports.</p>
       </section>
       <section>
@@ -259,6 +261,7 @@
   <script src="vendor/potree/potree.js"></script>
   <script src="vendor/libs/plasio/js/laslaz.js"></script>
   <script src="config.js"></script>
+  <script src="area-measurement.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
