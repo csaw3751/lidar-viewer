@@ -169,7 +169,7 @@ test("English and German catalogs have complete parity", () => {
   assert.ok(Object.isFrozen(i18n.catalog.en));
   assert.ok(Object.isFrozen(i18n.catalog.de));
   assert.ok(Object.isFrozen(i18n.potreeGermanSupplement));
-  assert.equal(Object.keys(i18n.potreeGermanSupplement).length, 30);
+  assert.equal(Object.keys(i18n.potreeGermanSupplement).length, 54);
   for (const [key, value] of Object.entries(i18n.potreeGermanSupplement)) {
     assert.ok(key.includes("."), "Potree supplement keys must be namespaced");
     assert.equal(typeof value, "string");

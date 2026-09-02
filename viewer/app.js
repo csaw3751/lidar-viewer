@@ -324,6 +324,20 @@
     });
   }
 
+  function watchPotreeSceneTree() {
+    const scene = state.viewer && state.viewer.scene;
+    if (!scene || typeof scene.addEventListener !== "function") return;
+    const scheduleTranslation = () => window.setTimeout(translatePotreeSceneTree, 0);
+    [
+      "measurement_added",
+      "profile_added",
+      "volume_added",
+      "camera_animation_added",
+      "oriented_images_added",
+      "360_images_added",
+    ].forEach((eventName) => scene.addEventListener(eventName, scheduleTranslation));
+  }
+
   function translateSceneObjects() {
     if (!state.viewer || !state.viewer.scene) return;
     const collections = [
@@ -797,6 +811,7 @@
 
       const viewer = new Potree.Viewer(byId("potree_render_area"));
       state.viewer = viewer;
+      watchPotreeSceneTree();
 
       viewer.setEDLEnabled(true);
       viewer.setEDLRadius(1.25);
