@@ -61,7 +61,6 @@ class StaticSecurityTests(unittest.TestCase):
         html = (VIEWER / "index.html").read_text(encoding="utf-8")
         config = (VIEWER / "config.js").read_text(encoding="utf-8")
         app = (VIEWER / "app.js").read_text(encoding="utf-8")
-        styles = (VIEWER / "styles.css").read_text(encoding="utf-8")
         access = (VIEWER / "zenodo-access.js").read_text(encoding="utf-8")
         i18n = (VIEWER / "i18n.js").read_text(encoding="utf-8")
 
@@ -168,6 +167,7 @@ class StaticSecurityTests(unittest.TestCase):
         html = (VIEWER / "index.html").read_text(encoding="utf-8")
         config = (VIEWER / "config.js").read_text(encoding="utf-8")
         app = (VIEWER / "app.js").read_text(encoding="utf-8")
+        styles = (VIEWER / "styles.css").read_text(encoding="utf-8")
         access = (VIEWER / "zenodo-access.js").read_text(encoding="utf-8")
 
         self.assertIn('id="quality-selector"', html)
