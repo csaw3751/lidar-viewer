@@ -64,6 +64,15 @@
       ? runtimeConfig.defaultQuality : "auto",
   });
 
+  const POTREE_TREE_ROOT_KEYS = Object.freeze({
+    pointclouds: "potree.tree.pointClouds",
+    measurements: "potree.tree.measurements",
+    annotations: "potree.tree.annotations",
+    other: "potree.tree.other",
+    vectors: "potree.tree.vectors",
+    images: "potree.tree.images",
+  });
+
   const state = {
     viewer: null,
     metadata: null,
@@ -269,6 +278,52 @@
     return object;
   }
 
+  function installPotreeTranslations() {
+    const potreeI18n = window.i18n;
+    const supplement = i18n && i18n.potreeGermanSupplement;
+    if (potreeI18n && supplement && typeof potreeI18n.addResources === "function") {
+      potreeI18n.addResources("de", "translation", supplement);
+    }
+  }
+
+  function translatePotreeSceneTree() {
+    if (!state.viewer || !state.viewer.scene || !window.$) return;
+    const element = window.$("#jstree_scene");
+    if (!element || !element.length || typeof element.jstree !== "function") return;
+    const tree = element.jstree(true);
+    if (!tree || typeof tree.get_node !== "function" || typeof tree.rename_node !== "function") return;
+
+    Object.entries(POTREE_TREE_ROOT_KEYS).forEach(([nodeId, translationKey]) => {
+      const node = tree.get_node(nodeId);
+      if (node) tree.rename_node(node, t(translationKey));
+    });
+
+    const root = tree.get_node("#");
+    const scene = state.viewer.scene;
+    ((root && root.children_d) || []).forEach((nodeId) => {
+      const node = tree.get_node(nodeId);
+      if (!node || !node.data) return;
+
+      let translationKey = node.data.__lidarViewerTranslationKey || null;
+      if (!translationKey && (scene.cameraAnimations || []).includes(node.data)) {
+        translationKey = "potree.tree.cameraAnimation";
+      } else if (!translationKey && (scene.orientedImages || []).includes(node.data)) {
+        translationKey = "potree.tree.orientedImages";
+      } else if (!translationKey && (scene.images360 || []).includes(node.data)) {
+        translationKey = "potree.tree.images360";
+      } else if (
+        !translationKey
+        && window.THREE
+        && typeof window.THREE.Camera === "function"
+        && node.data instanceof window.THREE.Camera
+      ) {
+        translationKey = "potree.tree.camera";
+      }
+
+      if (translationKey) tree.rename_node(node, t(translationKey));
+    });
+  }
+
   function translateSceneObjects() {
     if (!state.viewer || !state.viewer.scene) return;
     const collections = [
@@ -283,6 +338,7 @@
         }
       });
     });
+    translatePotreeSceneTree();
   }
 
   function refreshLanguage() {
@@ -294,7 +350,7 @@
       state.viewer.setDescription(t("viewer.description"));
     }
     if (state.pointcloud && state.dataset && state.source) {
-      populateDatasetInfo(null, {
+      populateDatasetInfo(state.metadata, {
         mode: state.source.mode,
         scan: state.dataset,
       }, state.pointcloud);
@@ -552,9 +608,25 @@
     }
   }
 
-  function showFatal(titleKey, messageKey, retry = true, values = {}) {
+  function setLoadingOverlayVisible(visible) {
     const overlay = byId("loading-overlay");
-    overlay.classList.remove("dismissed");
+    const chrome = [
+      document.querySelector(".app-header"),
+      document.querySelector(".toolstrip"),
+      document.querySelector(".status-pill"),
+    ].filter(Boolean);
+
+    overlay.classList.toggle("dismissed", !visible);
+    overlay.toggleAttribute("inert", !visible);
+    overlay.setAttribute("aria-hidden", String(!visible));
+    chrome.forEach((element) => {
+      element.toggleAttribute("inert", visible);
+      element.setAttribute("aria-hidden", String(visible));
+    });
+  }
+
+  function showFatal(titleKey, messageKey, retry = true, values = {}) {
+    setLoadingOverlayVisible(true);
     byId("loading-spinner").classList.add("hidden");
     setLoading(titleKey, messageKey, values);
     byId("loading-retry").classList.toggle("hidden", !retry);
@@ -646,7 +718,7 @@
     window.addEventListener("lidar-language-changed", refreshLanguage);
     byId("scan-selector").addEventListener("change", (event) => {
       if (!window.ZenodoViewerAccess.selectScan(event.target.value)) return;
-      byId("loading-overlay").classList.remove("dismissed");
+      setLoadingOverlayVisible(true);
       byId("loading-spinner").classList.remove("hidden");
       setLoading("loading.switchTitle", "loading.switchMessage");
       window.location.reload();
@@ -737,7 +809,9 @@
 
       const guiReady = new Promise((resolve) => {
         viewer.loadGUI(() => {
+          installPotreeTranslations();
           viewer.setLanguage(i18n.language);
+          translatePotreeSceneTree();
           resolve();
         });
       });
@@ -796,7 +870,7 @@
           qualityMode: state.qualityMode,
         },
       );
-      byId("loading-overlay").classList.add("dismissed");
+      setLoadingOverlayVisible(false);
     } catch (error) {
       console.error("Viewer error", {
         name: error && error.name ? error.name : "Error",

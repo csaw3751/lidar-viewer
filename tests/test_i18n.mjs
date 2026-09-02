@@ -168,6 +168,13 @@ test("English and German catalogs have complete parity", () => {
   assert.ok(Object.isFrozen(i18n.catalog));
   assert.ok(Object.isFrozen(i18n.catalog.en));
   assert.ok(Object.isFrozen(i18n.catalog.de));
+  assert.ok(Object.isFrozen(i18n.potreeGermanSupplement));
+  assert.equal(Object.keys(i18n.potreeGermanSupplement).length, 30);
+  for (const [key, value] of Object.entries(i18n.potreeGermanSupplement)) {
+    assert.ok(key.includes("."), "Potree supplement keys must be namespaced");
+    assert.equal(typeof value, "string");
+    assert.ok(value.trim(), key + " must not have an empty German value");
+  }
 
   const english = flattened(i18n.catalog.en);
   const german = flattened(i18n.catalog.de);
@@ -194,7 +201,7 @@ test("every translation binding in the HTML exists in both catalogs", () => {
   const { i18n } = loadI18n();
   const english = flattened(i18n.catalog.en);
   const german = flattened(i18n.catalog.de);
-  const bindingPattern = /\bdata-i18n(?:-title|-aria-label|-content)?="([^"]+)"/g;
+  const bindingPattern = /\bdata-lidar-i18n(?:-title|-aria-label|-content)?="([^"]+)"/g;
   const keys = Array.from(html.matchAll(bindingPattern), (match) => match[1]);
   const uniqueKeys = Array.from(new Set(keys)).sort();
 
@@ -258,10 +265,10 @@ test("apply and live switching update text, title, ARIA, content and selectors",
     .find((candidate) => probe.i18n.catalog.en[candidate] !== probe.i18n.catalog.de[candidate]);
   assert.ok(key, "At least one catalog entry must differ between English and German");
 
-  const textElement = new FakeElement({ "data-i18n": key }, "fallback");
-  const titleElement = new FakeElement({ "data-i18n-title": key, title: "fallback" });
-  const ariaElement = new FakeElement({ "data-i18n-aria-label": key, "aria-label": "fallback" });
-  const contentElement = new FakeElement({ "data-i18n-content": key, content: "fallback" });
+  const textElement = new FakeElement({ "data-lidar-i18n": key }, "fallback");
+  const titleElement = new FakeElement({ "data-lidar-i18n-title": key, title: "fallback" });
+  const ariaElement = new FakeElement({ "data-lidar-i18n-aria-label": key, "aria-label": "fallback" });
+  const contentElement = new FakeElement({ "data-lidar-i18n-content": key, content: "fallback" });
   const headerSelector = new FakeElement({ "data-language-selector": "" });
   const loadingSelector = new FakeElement({ "data-language-selector": "" });
   const elements = [

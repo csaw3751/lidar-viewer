@@ -140,7 +140,17 @@
     "dataset.accessPublished": "Protected Zenodo publication",
     "dataset.coordinates": "Local, {units} (no CRS)",
     "status.ready": "Ready · COPC · {quality} quality · protected Zenodo access",
-    "status.readyWithPoints": "Ready · {count} points · COPC · {quality} quality · protected Zenodo access"
+    "status.readyWithPoints": "Ready · {count} points · COPC · {quality} quality · protected Zenodo access",
+    "potree.tree.pointClouds": "Point Clouds",
+    "potree.tree.measurements": "Measurements",
+    "potree.tree.annotations": "Annotations",
+    "potree.tree.other": "Other",
+    "potree.tree.vectors": "Vectors",
+    "potree.tree.images": "Images",
+    "potree.tree.cameraAnimation": "Camera animation",
+    "potree.tree.orientedImages": "Oriented images",
+    "potree.tree.images360": "360° images",
+    "potree.tree.camera": "Camera"
   });
 
   const GERMAN = Object.freeze({
@@ -278,10 +288,53 @@
     "dataset.accessPublished": "Geschützte Zenodo-Veröffentlichung",
     "dataset.coordinates": "Lokal, {units} (kein CRS)",
     "status.ready": "Bereit · COPC · Qualität {quality} · geschützter Zenodo-Zugriff",
-    "status.readyWithPoints": "Bereit · {count} Punkte · COPC · Qualität {quality} · geschützter Zenodo-Zugriff"
+    "status.readyWithPoints": "Bereit · {count} Punkte · COPC · Qualität {quality} · geschützter Zenodo-Zugriff",
+    "potree.tree.pointClouds": "Punktwolken",
+    "potree.tree.measurements": "Messungen",
+    "potree.tree.annotations": "Annotationen",
+    "potree.tree.other": "Sonstiges",
+    "potree.tree.vectors": "Vektoren",
+    "potree.tree.images": "Bilder",
+    "potree.tree.cameraAnimation": "Kameraanimation",
+    "potree.tree.orientedImages": "Orientierte Bilder",
+    "potree.tree.images360": "360°-Bilder",
+    "potree.tree.camera": "Kamera"
   });
 
   const CATALOG = Object.freeze({ en: ENGLISH, de: GERMAN });
+
+  const POTREE_GERMAN_SUPPLEMENT = Object.freeze({
+    "tb.annotations_opt": "Annotationen",
+    "tb.filters_opt": "Filter",
+    "tt.point_measurement": "Punktmessung",
+    "tt.height_measurement": "Höhenmessung",
+    "tt.circle_measurement": "Kreismessung",
+    "tt.annotation": "Annotation",
+    "tt.screen_clip_box": "Auswahlrahmen zeichnen. Dafür muss die orthografische Kameraansicht aktiv sein!",
+    "tt.right_view_control": "Rechte Ansicht",
+    "tt.back_view_control": "Rückansicht",
+    "tt.bottom_view_control": "Ansicht von unten",
+    "tt.heli_control": "Helikoptersteuerung",
+    "tt.compass": "Kompass",
+    "tt.camera_animation": "Kameraanimation",
+    "appearance.min_point_size": "Mindestpunktgröße",
+    "appearance.extra_range": "Skalarbereich",
+    "appearance.edl_opacity": "Deckkraft",
+    "appearance.backface_culling": "Rückseiten ausblenden",
+    "measurements.clip": "Beschneiden",
+    "measurements.show": "Volumen anzeigen",
+    "annotations.show3D": "In 3D anzeigen",
+    "annotations.showMap": "Auf Karte anzeigen",
+    "profile.save_las": "LAS speichern (3D)",
+    "profile.save_ortho": "CSV speichern (2D)",
+    "scene.camera_position": "Kameraposition",
+    "scene.camera_target": "Kameraziel",
+    "filters.return_number": "Rückgabenummer",
+    "filters.number_of_returns": "Anzahl der Rückgaben",
+    "filters.gps_min": "Min.",
+    "filters.gps_max": "Max.",
+    "filters.gps_time": "GPS-Zeit",
+  });
 
   function normaliseLanguage(value) {
     if (typeof value !== "string") return null;
@@ -337,10 +390,10 @@
     if (documentElement) documentElement.lang = activeLanguage;
 
     const bindings = Object.freeze([
-      ["data-i18n", "textContent"],
-      ["data-i18n-title", "title"],
-      ["data-i18n-aria-label", "aria-label"],
-      ["data-i18n-content", "content"],
+      ["data-lidar-i18n", "textContent"],
+      ["data-lidar-i18n-title", "title"],
+      ["data-lidar-i18n-aria-label", "aria-label"],
+      ["data-lidar-i18n-content", "content"],
     ]);
     for (const [attribute, target] of bindings) {
       documentRoot.querySelectorAll("[" + attribute + "]").forEach((element) => {
@@ -384,6 +437,7 @@
     detectLanguage,
     locale: () => activeLanguage === "de" ? "de-AT" : "en-GB",
     normaliseLanguage,
+    potreeGermanSupplement: POTREE_GERMAN_SUPPLEMENT,
     setLanguage,
     t: translate,
     get language() { return activeLanguage; },

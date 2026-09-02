@@ -775,6 +775,18 @@ button:disabled {
   }
 }
 
+@media (max-width: 390px) {
+  .brand-copy {
+    display: none;
+  }
+}
+
+@media (max-width: 340px) {
+  .brand-mark {
+    display: none;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
