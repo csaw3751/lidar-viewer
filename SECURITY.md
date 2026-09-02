@@ -1,32 +1,32 @@
-# Sicherheitshinweise
+# Security Guidance
 
-## Geheimlinks
+## Secret links
 
-Zenodo-Geheimlinks sind Bearer-Zugangsdaten: Jede Person mit dem vollständigen Link erhält die zugehörige Berechtigung. Deshalb:
+Zenodo secret links are bearer credentials: anyone with the complete link receives the associated permission. Therefore:
 
-- pro Empfängerin oder Empfänger einen eigenen Link mit Ablaufdatum erstellen;
-- Links nur direkt versenden;
-- versehentlich veröffentlichte Links sofort in Zenodo löschen;
-- niemals einen persönlichen Zenodo-API-Token verwenden;
-- `token`, `record` oder vollständige Viewer-Links nie in Git committen.
+- create a separate link with an expiration date for each recipient;
+- send links only through direct communication;
+- immediately delete any accidentally disclosed links in Zenodo;
+- never use a personal Zenodo API token;
+- never commit a `token`, `record`, or complete viewer link to Git.
 
-Der Viewer liest `record` und `token` nur aus dem URL-Fragment. Nach der Validierung wird das Fragment per `history.replaceState` entfernt. Für Neu laden und Scanwechsel wird der Zugang ausschließlich in `sessionStorage` der aktuellen Tab-Sitzung gehalten; er überlebt weder das Schließen aller Kopien des Tabs noch den Befehl „Zugang aus diesem Tab entfernen“.
+The viewer reads `record` and `token` only from the URL fragment. After validation, it removes the fragment using `history.replaceState`. For page reloads and scan changes, access is held exclusively in the current tab's `sessionStorage`; it survives neither the closing of all copies of the tab nor the **Remove access from this tab** command.
 
-`sessionStorage` ist nach Web-Origin und nicht nach Repository-Pfad getrennt. Andere JavaScript-Seiten unter demselben `https://USERNAME.github.io`-Origin könnten den Eintrag im selben Tab lesen. Für besonders sensible Fälle sollte der Viewer daher die einzige Pages-Anwendung dieses Origins sein oder eine eigene Domain erhalten. Unabhängig davon sind kurze Ablaufzeiten und getrennte Zenodo-Links pro Person sinnvoll.
+`sessionStorage` is partitioned by web origin, not by repository path. Other JavaScript pages on the same `https://USERNAME.github.io` origin could read the entry within the same tab. For particularly sensitive use cases, the viewer should therefore be the only Pages application on that origin or should use a dedicated domain. Short expiration periods and separate Zenodo links for each person remain advisable in either case.
 
-## Technische Grenzen
+## Technical limitations
 
-Ein statischer Viewer kann den Geheimlink nicht vor einer bereits berechtigten Person verbergen. Diese Person kann den Token und die übertragenen Punktdaten in den Browser-Entwicklerwerkzeugen sehen. Das vereinbarte Modell schützt vor öffentlichem Auffinden und vor Zugriff ohne Link, verhindert aber keinen Download durch berechtigte Personen.
+A static viewer cannot conceal a secret link from a person who is already authorized. That person can inspect the token and transferred point data in the browser's developer tools. The agreed model prevents public discovery and access without the link, but it does not prevent downloads by authorized users.
 
-Für echte personenbezogene Anmeldung, Downloadverbote oder eine große Zahl gleichzeitiger Personen wäre ein eigener Authentifizierungs-/Streamingdienst erforderlich. Zenodo ist ein Repositorium und kein Hochlast-CDN.
+A dedicated authentication and streaming service would be required for actual user-specific authentication, download restrictions, or large numbers of concurrent users. Zenodo is a repository, not a high-load CDN.
 
-## Reaktion auf einen offengelegten Link
+## Responding to a disclosed link
 
-1. In Zenodo den betroffenen Link unter **Share → Links → Delete** löschen.
-2. Einen neuen, befristeten Link erzeugen.
-3. Den neuen Viewer-Link nur an die vorgesehenen Personen senden.
-4. Git-Verlauf und öffentliche Kommunikationskanäle kontrollieren; dort darf kein Token verbleiben.
+1. In Zenodo, delete the affected link under **Share → Links → Delete**.
+2. Create a new, time-limited link.
+3. Send the new viewer link only to its intended recipients.
+4. Check the Git history and public communication channels; no token may remain there.
 
-## Drittkomponenten
+## Third-party components
 
-Der Viewer enthält Potree und dessen gebündelte Open-Source-Abhängigkeiten unter ihren jeweiligen Lizenzen. Lizenzdateien bleiben in `viewer/vendor/` erhalten. Die veralteten, aber lokal gebündelten Bibliotheken laden keinen Code von CDNs; untrusted HTML oder beliebige Datenquellen werden nicht zugelassen.
+The viewer includes Potree and its bundled open-source dependencies under their respective licenses. License files remain in `viewer/vendor/`. The older, locally bundled libraries do not load code from CDNs; untrusted HTML and arbitrary data sources are not permitted.

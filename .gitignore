@@ -3,7 +3,7 @@
 .build/
 tools/
 
-# Punktwolken, Meshes und Originalexporte gehören auf Zenodo, nicht in Git.
+# Point clouds, meshes, and original exports belong on Zenodo, not in Git.
 *.e57
 *.las
 *.laz

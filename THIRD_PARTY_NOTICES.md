@@ -1,14 +1,14 @@
-# Hinweise zu Drittkomponenten
+# Third-Party Notices
 
-Der Webordner enthält Potree 1.8.0 und von Potree gebündelte Open-Source-Bibliotheken. Die jeweiligen Lizenztexte liegen direkt bei den Komponenten unter:
+The web directory contains Potree 1.8.0 and the open-source libraries bundled with Potree. The applicable license texts are stored alongside their components at:
 
 - `viewer/vendor/potree/LICENSE`
 - `viewer/vendor/potree/resources/LICENSE`
 - `viewer/vendor/potree/resources/textures/LICENSE`
 - `viewer/vendor/libs/**/LICENSE*`
 
-`viewer/vendor/potree/potree.js` wurde für diesen Viewer geringfügig angepasst, damit Fehler beim COPC-Range-Streaming als Promise-Fehler weitergereicht werden und fehlerhafte Knoten nicht in einer Anfrageschleife hängen bleiben. Der Potree-Lizenzhinweis bleibt unverändert erhalten.
+`viewer/vendor/potree/potree.js` contains a small patch from the uploaded baseline. The patch propagates COPC Range-streaming failures as Promise rejections and prevents failed nodes from becoming stuck in a request loop. The Potree license notice remains unchanged.
 
-Nicht benötigte Potree-Beispielmodelle, die Textur `brick_pavement.jpg` und die serverseitige Datei `image_preview.php` sind aus dem Release-Paket ausgeschlossen. Sie werden für Punktwolkenanzeige, Messungen, Profile oder Clipping nicht benötigt.
+The retained upstream vendor tree also contains example/model assets that this viewer does not require, including the `brick_pavement.jpg` texture, as well as server-oriented files such as `image_preview.php`. None of these assets is referenced by the viewer. GitHub Pages serves PHP files as static content and does not execute them; the files remain present so the vendored distribution is not altered.
 
-Für den selbst entwickelten Integrations- und UI-Code wird mit diesem Paket keine zusätzliche öffentliche Nutzungslizenz erteilt. Das berührt die Rechte aus den beigefügten Open-Source-Lizenzen nicht.
+No additional public-use license is granted with this package for the custom integration and UI code. This does not affect any rights granted under the included open-source licenses.
