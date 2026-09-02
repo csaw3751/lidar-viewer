@@ -65,6 +65,11 @@ button:focus-visible {
   display: none !important;
 }
 
+/* The first-party DE/EN selector is the only language control. */
+#potree_languages {
+  display: none !important;
+}
+
 .app-header,
 .toolstrip,
 .status-pill {
@@ -84,6 +89,7 @@ button:focus-visible {
   display: flex;
   align-items: center;
   min-width: 286px;
+  max-width: calc(100vw - 28px);
   height: 54px;
   padding: 7px 8px 7px 9px;
   border-radius: 15px;
@@ -110,6 +116,7 @@ body.sidebar-open .app-header {
 
 .brand-copy {
   display: flex;
+  flex: 1 1 150px;
   flex-direction: column;
   min-width: 0;
   margin: 0 18px 0 10px;
@@ -137,7 +144,8 @@ body.sidebar-open .app-header {
 }
 
 .scan-picker,
-.quality-picker {
+.quality-picker,
+.language-picker {
   display: flex;
   flex-direction: column;
   margin-right: 8px;
@@ -158,8 +166,14 @@ body.sidebar-open .app-header {
   max-width: 96px;
 }
 
+.language-picker {
+  min-width: 54px;
+  max-width: 58px;
+}
+
 .scan-picker select,
-.quality-picker select {
+.quality-picker select,
+.language-picker select {
   width: 100%;
   height: 28px;
   margin-top: 2px;
@@ -184,7 +198,9 @@ body.sidebar-open .app-header {
 }
 
 .scan-picker select:focus-visible,
-.quality-picker select:focus-visible {
+.quality-picker select:focus-visible,
+.language-picker select:focus-visible,
+.loading-language-picker select:focus-visible {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px rgba(85, 214, 190, 0.25);
 }
@@ -393,13 +409,40 @@ button:disabled {
 }
 
 .loading-card {
+  position: relative;
   width: min(470px, 100%);
-  padding: 34px;
+  padding: 54px 34px 34px;
   text-align: center;
   border: 1px solid var(--border);
   border-radius: 22px;
   background: rgba(16, 24, 32, 0.84);
   box-shadow: var(--shadow);
+}
+
+.loading-language-picker {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 0.64rem;
+  font-weight: 750;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.loading-language-picker select {
+  height: 28px;
+  padding: 0 24px 0 8px;
+  color: var(--ink);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  outline: 0;
+  background: #18232c;
+  font-size: 0.72rem;
+  font-weight: 700;
 }
 
 .loading-card h1 {
@@ -524,8 +567,9 @@ button:disabled {
 
 .shortcut-list div {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
-  gap: 16px;
+  gap: 8px 16px;
   padding: 6px 0;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   font-size: 0.76rem;
@@ -669,15 +713,27 @@ button:disabled {
     margin-right: 6px;
   }
 
-  .quality-picker > span {
+  .language-picker {
+    min-width: 54px;
+    max-width: 54px;
+    margin-right: 6px;
+  }
+
+  .quality-picker > span,
+  .language-picker > span {
     display: none;
   }
 
-  .quality-picker select {
+  .quality-picker select,
+  .language-picker select {
     height: 34px;
     margin-top: 0;
     padding-left: 7px;
     padding-right: 20px;
+  }
+
+  .wide-label {
+    margin-left: 4px;
   }
 
   .utility-button:not(.round) {
@@ -721,6 +777,18 @@ button:disabled {
     width: calc(100% - 36px);
     margin-left: 18px;
     margin-right: 18px;
+  }
+}
+
+@media (max-width: 390px) {
+  .brand-copy {
+    display: none;
+  }
+}
+
+@media (max-width: 340px) {
+  .brand-mark {
+    display: none;
   }
 }
 
