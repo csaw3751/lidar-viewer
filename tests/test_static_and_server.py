@@ -119,7 +119,7 @@ class StaticSecurityTests(unittest.TestCase):
             "High",
             "Analysis tools",
             "Viewer is loading",
-            "How the viewer works",
+            "How to use the viewer",
             "Dataset",
             "Remove analyses?",
         ):
